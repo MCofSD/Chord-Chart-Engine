@@ -116,7 +116,22 @@ export type ChordLineItem =
   /** The "-" of "| -" (display-only; meaning not in the Legend). */
   | { t: "same" }
   | { t: "chord"; chord: ChordName; beats?: string; noBass?: boolean; paren?: boolean }
-  | { t: "instrument"; op: "add" | "remove" | "only" | "except"; text: string }
+  /**
+   * "/E": a bass change with no chord, meaning the same chord over a new bass
+   * note (owner, 2026-11-09). Timed like a chord change.
+   */
+  | { t: "bass"; bass: string; beats?: string }
+  /**
+   * "(+Drm)". `beats` says when the instrument comes in or drops out:
+   * "(+Drm)[4]" = drums come in on beat 4 (owner, 2026-11-09).
+   */
+  | { t: "instrument"; op: "add" | "remove" | "only" | "except"; text: string; beats?: string }
+  /**
+   * A free-text instruction, e.g. "(Use chords for Verse)" (owner,
+   * 2026-11-09). Drawn in parentheses unless `paren` is false; a ⊕ or ⊗ in
+   * the text is drawn as the Legend symbol.
+   */
+  | { t: "text"; text: string; paren?: boolean }
   | { t: "stop"; kind: "abrupt" | "hold"; beats?: string; beatsFirst?: boolean }
   | { t: "direction"; text: "simile" | "ritard" | "NC" | "dstrn" | "Vamp" | "1/2T" }
   | { t: "times"; text: string }

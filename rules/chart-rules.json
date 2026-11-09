@@ -1,0 +1,255 @@
+{
+  "_about": "Formatting rules for Musicians' Club chord charts. One file read by both the renderer (src/chart) and the PDF importer (src/importers/pdf-chart). Change a rule here and both follow; neither tool's code needs to change. Keys starting with '_' are notes and are ignored. Sizes are in points (1/72 inch), US Letter. '(verify)' marks values to confirm with the owner.",
+
+  "legend": {
+    "_note": "Colors of the Music Legend marks (CLAUDE.md section 5).",
+    "colors": {
+      "red": "#EE0000",
+      "_beatRed": "Beat-tag digits are a slightly different red in the files.",
+      "beatRed": "#FF0000",
+      "green": "#00B050",
+      "_blue": "Dark blue: the first repeated riff's circled numbers (and the down arrow). The second riff uses light blue (render.riffColors).",
+      "blue": "#0000FF",
+      "black": "#000000"
+    }
+  },
+
+  "render": {
+    "_note": "How charts are drawn. Measured from the sample PDFs (mostly Since U Been Gone); drift between files noted.",
+    "page": {
+      "width": 612,
+      "height": 792,
+      "_bottomLimit": "Lowest y for a section's closing rule. SUBG page 2 ends with content at 768.6 and its rule just below; the footer baseline is 789.1. (verify)",
+      "bottomLimit": 779,
+      "_targetPages": "Charts aim to fit this many pages (owner); more prints a warning.",
+      "targetPages": 2
+    },
+    "squish": {
+      "_note": "When a chart would run past page.targetPages, vertical spacing is tightened from the max (row.height, section padding) just enough to fit, down to these minimums (owner, 2026-11-09: keep sections whole; squish section height to stay on 2 pages; rows between 17 and 20 pt). Font sizes and notation images never shrink. The minimum row height keeps a chord's superscript clear of the lyric descenders above it at arm's length. (verify)",
+      "minRowHeight": 17,
+      "minPadTop": 0.5,
+      "minPadBottom": 3
+    },
+    "colors": {
+      "ink": "#000000",
+      "lyric": "#808080",
+      "_lyricUpright": "'{2. I get}' text inside an ending in the lyric line.",
+      "lyricUpright": "#7F7F7F",
+      "_noBass": "Gray chord = no bass (Legend **). Not measured separately; lyric gray. (verify)",
+      "noBass": "#808080",
+      "rule": "#A6A6A6"
+    },
+    "_repeatColors": "Colors for repeated sections, in priority order (owner, 2026-11-08): the first repeated section from the top of the chart is blue, the second green, the third purple (the font colors in Awitin Mo At Isasayaw Ko). A label is colored only when a later 'Repeat ...' line points back to its section; other labels print black, regular. A fourth repeated section reuses purple, with a warning.",
+    "repeatColors": ["#0070C0", "#00B050", "#7030A0"],
+    "header": {
+      "baseline": 17.2,
+      "_dateSize": "Date, Calibri 10, at the left margin.",
+      "dateSize": 10,
+      "left": 7.2,
+      "right": 604.8,
+      "_titleCenter": "'TITLE' Calibri Bold 18 then ' (Artist, Year)' Calibri 14, centered as one block on x = 295.3 (all five sample PDFs agree to 0.1 pt; not the page center).",
+      "titleCenter": 295.3,
+      "titleSize": 18,
+      "artistSize": 14,
+      "_keySize": "'(Key of G, BPM=131)' Calibri 12, right-aligned.",
+      "keySize": 12
+    },
+    "footer": { "baseline": 789.1, "size": 11 },
+    "rule": {
+      "_x1": "Section rules run nearly edge to edge (5.8 to 606.4 pt).",
+      "x1": 5.8,
+      "x2": 606.4,
+      "thickness": 0.5,
+      "_firstY": "First rule, under the header (every page, including pages without a header).",
+      "firstY": 22.1
+    },
+    "section": {
+      "_labelX": "Label column: Arial 9 at the left margin. Awitin uses 11 pt; 9 pt chosen (most files).",
+      "labelX": 7.2,
+      "labelSize": 9,
+      "_ordinalSize": "Ordinal suffix ('st' in '1st Ver'): 6 pt, raised 3 pt.",
+      "ordinalSize": 6,
+      "ordinalRaise": 3,
+      "_padTop": "First baseline = rule + this (SUBG: 16.4-16.6 pt). Rows start at rule + padTop.",
+      "padTop": 1.9,
+      "_padBottom": "Rule = last row bottom + this (SUBG: last baseline + 10.3).",
+      "padBottom": 6.6,
+      "_snippetPadTop": "Snippet top below the rule.",
+      "snippetPadTop": 1.9,
+      "_labelBaselineOverSnippet": "When a section starts with a snippet, its label (and the overlay text) sit 10 pt below the rule.",
+      "labelBaselineOverSnippet": 10
+    },
+    "content": {
+      "_left": "Music starts at 0.6 inch.",
+      "left": 43.2,
+      "right": 604.8
+    },
+    "row": {
+      "_height": "Row height (chord line and lyric line are each one row of 16 pt text) and the MAX row height: used whenever the chart has room (owner, 2026-11-09: max 20 pt, always used when space allows). The original charts measure 18.4 pt. Tightened toward squish.minRowHeight only when that keeps the chart within page.targetPages.",
+      "height": 20,
+      "_baseline": "Baseline below the row top. Keeps the measured 3.7 pt below the baseline for descenders (18.4 - 14.7), so baseline = height - 3.7.",
+      "baseline": 16.3
+    },
+    "chord": {
+      "_extensionWeight": "Weight of a chord's extension (everything after root, flat/sharp and minor 'm'), taken as one unit at its own middle, relative to one core symbol. Used to find the chord's beat point. The owner (2026-11-09) said extensions count for less but was unsure how much. (verify)",
+      "extensionWeight": 0.5,
+      "_bassWeight": "Weight of a slash bass ('/F#') as one unit at its own middle. Owner (2026-11-09): less than an extension, but not nothing. (verify)",
+      "bassWeight": 0.25,
+      "rootSize": 16,
+      "_accidentalSize": "Flat/sharp after the root: 12 pt in the files ('B' 16 + 'b' 12).",
+      "accidentalSize": 12,
+      "_supSize": "Quality and beat tags: 10.6 pt superscript, raised 5.5 pt.",
+      "supSize": 10.6,
+      "supRaise": 5.5,
+      "_bassSize": "Slash bass: '/F' 14 pt, its accidental 11 pt.",
+      "bassSize": 14,
+      "bassAccidentalSize": 11,
+      "_glyphScale": "Symbol outlines at this multiple of the run size (same rule as diagrams).",
+      "glyphScale": 1.0,
+      "_slashTuck": "Slash tucked under a preceding superscript, as on the cover diagrams (owner, 2026-11-08). Computed from the Arimo outlines at chart sizes: untucked, the slash is 4.45 pt from a superscript '7' and 2.96 pt from a ')'; these leave about 2 pt in both cases, the diagrams' clearance scaled to a 16 pt root.",
+      "slashTuck": 2.45,
+      "slashTuckAfterParen": 1.0
+    },
+    "_riffColors": "Riff-reference colors by riff (owner, 2026-11-08): first repeated riff dark, second light.",
+    "riffColors": ["#0000FF", "#00B0F0"],
+    "marks": {
+      "_size": "Bar lines, '-', stops and braces: 16 pt like the chords.",
+      "size": 16,
+      "_smallSize": "Instrument tags, (simile), (2x): 12 pt.",
+      "smallSize": 12,
+      "_endingNumberSize": "Repeat-ending number '1.' in braces: Arial Bold 9.",
+      "endingNumberSize": 9,
+      "_refSize": "Circled reference number: 14 pt.",
+      "refSize": 14,
+      "_meterSize": "Stacked meter digits (an image in the files, about 7 x 17 pt). (verify)",
+      "meterSize": 9
+    },
+    "lyric": {
+      "size": 16,
+      "_asideSize": "'(thanks to you)' asides: 12 pt.",
+      "asideSize": 12
+    },
+    "note": {
+      "_size": "'Repeat ' Arial 12 then the section name Arial Bold 16 in its color.",
+      "size": 12,
+      "sectionSize": 16
+    },
+    "spacing": {
+      "_groupGap": "Minimum gap between two chord-line groups: one 16 pt space.",
+      "groupGap": 4.45,
+      "_itemGap": "Gap between items in a group, except next to bar lines and stops.",
+      "itemGap": 3.3,
+      "_tabOrigin": "Word's default tab stops: every 0.5 inch from the 0.1 inch margin (so 0.6 inch is a stop). Untimed chords past the end of the lyric go on this grid (owner, 2026-11-08).",
+      "tabOrigin": 7.2,
+      "tabStop": 36,
+      "_timingNear": "'before'/'after' chords: distance to the syllable they belong to (near) and to the other side of the gap (far). The asymmetry shows the timing. (verify)",
+      "timingNear": 2,
+      "timingFar": 12,
+      "_beatWidth": "Rhythm spacing: points per beat for timed chords and syllables (owner, 2026-11-09). A beat sits at the middle of its syllable and the weighted middle of its chord; points are pushed right when text would collide, and later points keep their proportional distance. Measured: lyric entries at about 26 pt (beat 2), 50.4 pt (beat 3), 79 pt (beat 4), 11.6-16 pt (beat 1&) in Since U Been Gone, 21.6 / 43.2 pt in American Boy and So Easy; full chord lines run 25-28 pt per beat. Lines that don't fit flex this down first (see fitLine). (verify)",
+      "beatWidth": 25.2,
+      "_hyphenPad": "Space on each side of the hyphen in a word split by a gap ('start - ed').",
+      "hyphenPad": 1
+    },
+    "_narrowScale": "Arial Narrow is about 82% of Arial's width (measured 0.81-0.82). Lines are compressed down to this before they wrap.",
+    "narrowScale": 0.82
+  },
+
+  "timing": {
+    "_defaultMeter": "Meter when a chart does not set one (owner, 2026-11-09: 4/4).",
+    "defaultMeter": { "top": 4, "bottom": 4 }
+  },
+
+  "sections": {
+    "_types": "How a section label maps to a section type, tried in order (case-insensitive regular expressions). Used by the importer, and for 'Repeat ...' lines.",
+    "types": [
+      { "match": "^intro", "type": "intro" },
+      { "match": "pre[- ]?cho", "type": "prechorus" },
+      { "match": "post[- ]?cho", "type": "other" },
+      { "match": "cho", "type": "chorus" },
+      { "match": "ver", "type": "verse" },
+      { "match": "^ref", "type": "refrain" },
+      { "match": "^bridge", "type": "bridge" },
+      { "match": "^break", "type": "break" },
+      { "match": "^solo", "type": "solo" },
+      { "match": "^interlude", "type": "interlude" },
+      { "match": "^outro", "type": "outro" },
+      { "match": "^(end|ending|coda)", "type": "ending" }
+    ],
+    "_repeatWord": "Word that starts a 'Repeat Chorus' line.",
+    "repeatWord": "Repeat"
+  },
+
+  "symbols": {
+    "_note": "Vocabulary of the chord line, from the Music Legend and the marks used in today's charts.",
+    "chordRoots": "ABCDEFG",
+    "flat": ["b", "♭"],
+    "sharp": ["#", "♯"],
+    "bar": "|",
+    "sameBar": ["-", "–"],
+    "stop": "//",
+    "_stopColors": "Color of '//' -> stop kind (Legend: red abrupt stop, green stop and hold).",
+    "stopColors": { "red": "abrupt", "beatRed": "abrupt", "green": "hold" },
+    "_instrumentOps": "Sign before an instrument inside parentheses -> op. '⊕'/'⊗' are tiny images in the Word PDFs (see import.circledOps).",
+    "instrumentOps": { "+": "add", "-": "remove", "⊕": "only", "⊗": "except" },
+    "_instrumentJoin": "Several instruments in one mark, e.g. '(+Bss/Drm)'.",
+    "instrumentJoin": "/",
+    "instruments": ["Bnd", "Drm", "Gtr", "RGtr", "LGtr", "Bss", "Snr", "Pno", "Org", "Hrn", "Prcn", "KD", "XStk", "Synth", "E. Piano"],
+    "directions": ["simile", "ritard", "NC", "dstrn", "Vamp", "1/2T"],
+    "_times": "Repeat count such as '(2x)'.",
+    "times": "^\\d+x$",
+    "endingOpen": "{",
+    "endingClose": "}",
+    "arrowDown": "↓",
+    "_refGlyphs": "Circled riff numbers 1-10 as Unicode (the Word PDFs use Wingdings U+F08C-U+F095 for the same).",
+    "refGlyphs": ["❶", "❷", "❸", "❹", "❺", "❻", "❼", "❽", "❾", "❿"],
+    "_minor": "A quality starting with 'm' (but not 'maj') is minor; its 'm' counts in the chord's core weight.",
+    "minorPattern": "^m(?!aj)"
+  },
+
+  "import": {
+    "_note": "How the legacy Word-made PDFs encode charts, for the PDF importer. These describe the old files, so they stay put when the drawing rules above change.",
+    "_lyricColors": "Gray lyric text (and gray 'no bass' chords).",
+    "lyricColors": ["#808080", "#7F7F7F"],
+    "colorTolerance": 24,
+    "_ruleMinWidth": "Section rules: filled bars at least this wide and at most ruleMaxHeight tall (gray #A6A6A6, black in Awitin).",
+    "ruleMinWidth": 500,
+    "ruleMaxHeight": 1.5,
+    "_headerMaxY": "Header text sits above this baseline on page 1; footer text below footerMinY.",
+    "headerMaxY": 21,
+    "footerMinY": 780,
+    "_labelMaxX": "Section label characters start left of this x (the content starts at 43.2; 'End Cho' reaches 40); label text is at most labelMaxSize pt.",
+    "labelMaxX": 42,
+    "labelMaxSize": 11.5,
+    "_mainSizeMin": "Lyric and chord rows use 15-18 pt text; smaller text is superscript, aside, or a small mark.",
+    "mainSizeMin": 13,
+    "_superscriptRaise": "A character whose baseline is at least this far above its row's baseline is a superscript (quality, beat tag, ordinal).",
+    "superscriptRaise": 2,
+    "_rowJoin": "Small text within this distance above a main row belongs to that row.",
+    "rowJoin": 9,
+    "_rowPair": "A chord row and the lyric row below it form one line when their baselines are at most this far apart.",
+    "rowPair": 24,
+    "_wordGap": "Gap (fraction of the font size) above which two characters are separate words.",
+    "wordGap": 0.18,
+    "_syllableHyphens": "A hyphen with space on both sides between two letters splits a sung word ('start - ed'); it is removed and the word joined.",
+    "syllableHyphens": ["-", "–"],
+    "_bassSlashGap": "A plain '/' then a root letter at most this far (pt) after a chord is its slash bass (hand-made files leave 0-9 pt).",
+    "bassSlashGap": 10,
+    "_groupGap": "A gap wider than this (pt) between chord-line marks starts a new group; bars and chords always start one.",
+    "groupGap": 7,
+    "_wingdingsRefStart": "Wingdings code for circled 1 (U+F08C); circled n is this + n - 1.",
+    "wingdingsRefStart": 61580,
+    "_circledOps": "The circled plus/times before an instrument are tiny images no larger than this (pt).",
+    "circledOps": { "maxSize": 16 },
+    "_snippetMinWidth": "Images at least this wide are notation snippets.",
+    "snippetMinWidth": 100,
+    "_legacyBeatWidth": "Points per beat in the legacy charts: a late lyric starts about this far per beat after its line's opening bar line (measured on Since U Been Gone; American Boy and So Easy run 21.6). Separate from render.spacing.beatWidth so changing how we draw does not change how old files are read.",
+    "legacyBeatWidth": 25.2,
+    "_entryMinBeats": "A lyric starting at least this many beats after its line's opening bar line gets a guessed lyricEntry.",
+    "entryMinBeats": 0.35,
+    "_rhythmGrid": "Guessed beats are rounded to this fraction of a beat (0.5 = eighth notes).",
+    "rhythmGrid": 0.5,
+    "_betweenSyllables": "A chord whose middle is farther than this (pt) outside the nearest syllable is placed 'before'/'after' it and flagged.",
+    "betweenSyllables": 3,
+    "dateFormat": "M/D/YYYY"
+  }
+}

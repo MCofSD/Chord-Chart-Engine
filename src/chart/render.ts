@@ -63,7 +63,27 @@ function sectionStyle(index: number, colors: RepeatColors): { fill: string; bold
 }
 
 /** A laid block; a line that wrapped has several rows, each a chord row and a lyric row. */
-interface LaidBlock { block: Block; height: number; rows?: LaidLine[] }
+interface LaidBlock { block: Block; rows?: LaidLine[] }
+
+/**
+ * Vertical spacing. Normally the measured values; tightened toward
+ * render.squish when that keeps a chart within render.page.targetPages.
+ */
+interface Vertical { rowHeight: number; baseline: number; padTop: number; padBottom: number }
+
+/** Vertical spacing squished by `s` (0 = the rules' max, used whenever there is room; 1 = the minimums). */
+function vertical(s: number): Vertical {
+  const Q = P.squish, lerp = (a: number, b: number) => a + (b - a) * s;
+  const rowHeight = lerp(P.row.height, Q.minRowHeight);
+  // The baseline keeps its distance from the row's bottom (room for descenders).
+  return { rowHeight, baseline: rowHeight - (P.row.height - P.row.baseline), padTop: lerp(P.section.padTop, Q.minPadTop), padBottom: lerp(P.section.padBottom, Q.minPadBottom) };
+}
+
+function blockHeight(b: LaidBlock, V: Vertical): number {
+  if (b.block.kind === "snippet") return b.block.height;
+  if (b.block.kind === "note") return V.rowHeight;
+  return b.rows!.reduce((h, r) => h + rowCount(r), 0) * V.rowHeight;
+}
 
 const rowCount = (line: LaidLine) => Math.max((line.chords.length ? 1 : 0) + (line.lyrics.length ? 1 : 0), 1);
 
@@ -81,18 +101,17 @@ function snippetAxis(snippet: SnippetBlock, meter: Meter): ((t: number) => numbe
 /** Lays out a section's blocks; `meter` carries inline meter changes from line to line. */
 function layoutBlocks(blocks: Block[], meter: { current: Meter }): LaidBlock[] {
   return blocks.map((block, i) => {
-    if (block.kind === "snippet") return { block, height: block.height };
-    if (block.kind === "note") return { block, height: P.row.height };
+    if (block.kind !== "line") return { block };
     const prev = blocks[i - 1];
     const axis = prev?.kind === "snippet" ? snippetAxis(prev, meter.current) : undefined;
     const rows = fitLine(block, axis ? { meter: meter.current, axis } : { meter: meter.current });
     meter.current = lineTiming(block, meter.current).endMeter;
-    return { block, height: rows.reduce((h, r) => h + rowCount(r), 0) * P.row.height, rows };
+    return { block, rows };
   });
 }
 
-function sectionHeight(blocks: LaidBlock[]): number {
-  return P.section.padTop + blocks.reduce((h, b) => h + b.height, 0) + P.section.padBottom;
+function sectionHeight(blocks: LaidBlock[], V: Vertical): number {
+  return V.padTop + blocks.reduce((h, b) => h + blockHeight(b, V), 0) + V.padBottom;
 }
 
 function noteRuns(note: NoteBlock, colors: RepeatColors): Run[] {
@@ -111,7 +130,7 @@ function placedSvg(line: { x: number; runs: Run[] }[], baseline: number): string
 }
 
 /** SVG for one block whose rows start at `top`. */
-function blockSvg(b: LaidBlock, top: number, colors: RepeatColors): string {
+function blockSvg(b: LaidBlock, top: number, colors: RepeatColors, V: Vertical): string {
   const { block } = b;
   if (block.kind === "snippet") {
     let svg = `<image href="${esc(block.src)}" x="${fmt(P.content.left)}" y="${fmt(top)}" width="${fmt(block.width)}" height="${fmt(block.height)}" preserveAspectRatio="none"/>`;
@@ -122,15 +141,15 @@ function blockSvg(b: LaidBlock, top: number, colors: RepeatColors): string {
     }
     return svg;
   }
-  if (block.kind === "note") return runsToSvg(noteRuns(block, colors), P.section.labelX, top + P.row.baseline).svg;
+  if (block.kind === "note") return runsToSvg(noteRuns(block, colors), P.section.labelX, top + V.baseline).svg;
 
   let y = top;
   let out = "";
   for (const line of b.rows!) {
     let svg = "";
-    if (line.chords.length) { svg += placedSvg(line.chords, y + P.row.baseline); y += P.row.height; }
-    if (line.lyrics.length) { svg += placedSvg(line.lyrics, y + P.row.baseline); y += P.row.height; }
-    if (!line.chords.length && !line.lyrics.length) y += P.row.height;
+    if (line.chords.length) { svg += placedSvg(line.chords, y + V.baseline); y += V.rowHeight; }
+    if (line.lyrics.length) { svg += placedSvg(line.lyrics, y + V.baseline); y += V.rowHeight; }
+    if (!line.chords.length && !line.lyrics.length) y += V.rowHeight;
     if (line.scaleX < 1) {
       const l = P.content.left;
       svg = `<g transform="translate(${fmt(l)} 0) scale(${line.scaleX.toFixed(4)} 1) translate(${fmt(-l)} 0)">${svg}</g>`;
@@ -166,49 +185,70 @@ export function renderChart(chart: Chart, options: RenderChartOptions = {}): Ren
   const bottom = options.bottomLimit ?? P.page.bottomLimit;
   const warnings: string[] = [];
   const colors = repeatColors(chart, warnings);
+  const meter = { current: chart.meta.meter ?? DEFAULT_METER };
+  const laid = chart.sections.map((section) => {
+    const blocks = layoutBlocks(section.blocks, meter);
+    for (const b of blocks) for (const r of b.rows ?? []) for (const w of r.warnings) warnings.push(`${section.label || section.type}: ${w}`);
+    return blocks;
+  });
+
+  // Owner (2026-11-09): keep each section whole on its page; if the chart would
+  // run past the target page count, squish vertical spacing just enough to fit.
+  const target = P.page.targetPages;
+  const paginateAt = (s: number) => paginate(chart, laid, colors, vertical(s), bottom);
+  let pages = paginateAt(0);
+  // Squish only when that keeps the chart within the target; a longer chart keeps normal spacing.
+  if (pages.length > target && paginateAt(1).length <= target) {
+    let lo = 0, hi = 1; // smallest squish that fits
+    for (let i = 0; i < 12; i++) { const mid = (lo + hi) / 2; if (paginateAt(mid).length <= target) hi = mid; else lo = mid; }
+    pages = paginateAt(hi);
+    warnings.push(`vertical spacing tightened to fit ${target} page(s): rows ${vertical(hi).rowHeight.toFixed(2)} pt (max ${P.row.height}, min ${P.squish.minRowHeight})`);
+  }
+  return finish(chart, pages, warnings);
+}
+
+/** Lays sections onto pages. A section moves whole to the next page if it doesn't fit; it splits only if taller than a page. */
+function paginate(chart: Chart, laid: LaidBlock[][], colors: RepeatColors, V: Vertical, bottom: number): string[][] {
   const pages: string[][] = [[headerSvg(chart), rule(P.rule.firstY)]];
   let y = P.rule.firstY;
-
   const newPage = () => {
     pages.push([rule(P.rule.firstY)]);
     y = P.rule.firstY;
   };
-
-  const meter = { current: chart.meta.meter ?? DEFAULT_METER };
   for (const [index, section] of chart.sections.entries()) {
-    let blocks = layoutBlocks(section.blocks, meter);
-    for (const b of blocks) for (const r of b.rows ?? []) for (const w of r.warnings) warnings.push(`${section.label || section.type}: ${w}`);
-
-    // Move the whole section to a new page if it doesn't fit; split it only if it is taller than a page.
-    if (y + sectionHeight(blocks) > bottom && y > P.rule.firstY) newPage();
+    let blocks = laid[index]!;
+    if (y + sectionHeight(blocks, V) > bottom && y > P.rule.firstY) newPage();
 
     let first = true;
     while (blocks.length) {
       let take = blocks.length;
-      while (take > 1 && y + sectionHeight(blocks.slice(0, take)) > bottom) take--;
+      while (take > 1 && y + sectionHeight(blocks.slice(0, take), V) > bottom) take--;
       const part = blocks.slice(0, take);
       blocks = blocks.slice(take);
 
       const page = pages[pages.length - 1]!;
-      const top = y + P.section.padTop;
+      const top = y + V.padTop;
       if (first && section.label) {
         const { fill, bold } = sectionStyle(index, colors);
         const firstBlock = part[0]!.block;
-        const labelBaseline = firstBlock.kind === "snippet" ? y + P.section.labelBaselineOverSnippet : top + P.row.baseline;
+        const labelBaseline = firstBlock.kind === "snippet" ? y + P.section.labelBaselineOverSnippet : top + V.baseline;
         page.push(runsToSvg(labelRuns(section.label, fill, bold), P.section.labelX, labelBaseline).svg);
       }
       let rowTop = top;
       for (const b of part) {
-        page.push(blockSvg(b, rowTop, colors));
-        rowTop += b.height;
+        page.push(blockSvg(b, rowTop, colors, V));
+        rowTop += blockHeight(b, V);
       }
-      y = rowTop + P.section.padBottom;
+      y = rowTop + V.padBottom;
       page.push(rule(y));
       first = false;
       if (blocks.length) newPage();
     }
   }
+  return pages;
+}
 
+function finish(chart: Chart, pages: string[][], warnings: string[]): RenderedChart {
   const total = pages.length;
   if (total > P.page.targetPages) warnings.push(`chart is ${total} pages; the aim is ${P.page.targetPages} or fewer`);
   return {

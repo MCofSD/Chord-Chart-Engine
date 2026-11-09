@@ -88,16 +88,16 @@ describe.skipIf(!HAVE_FILES)("chart vs. original PDF (Since U Been Gone, chorus 
     expect(Math.abs(dKey)).toBeLessThan(1);
   });
 
-  it("row baselines and the closing rule match the original's spacing within 0.3 pt", () => {
-    // Original: chorus rule at 510.4, rows at 527.0 + 18.4k, closing rule at 666.1.
-    const origRule = 510.4;
-    const origBaselines = [527.0, 545.3, 563.7, 582.1, 600.5, 618.9, 637.3, 655.8].map((y) => y - origRule);
+  it("spaces the chorus rows at the rules' row height, with the measured padding to the rules", () => {
+    // Original: chorus rule at 510.4, rows at 527.0 + 18.4k, closing rule at 666.1. Rows are now
+    // 20 pt when there is room (owner, 2026-11-09: max row height), so the rhythm is checked against the rules.
     const rules = [...ours.matchAll(new RegExp(`<rect x="[\\d.]+" y="([\\d.]+)"[^>]*fill="${CHART.colors.rule}"`, "g"))].map((m) => +m[1]!);
-    expect(Math.abs(rules[1]! - rules[0]! - (666.1 - origRule))).toBeLessThan(0.3);
     // Chorus rows only (the fixture's "Repeat Chorus" line follows the closing rule).
-    const ourBaselines = [...new Set(ourTexts.filter((t) => t.size === 16 && t.y > 30 && t.y < rules[1]!).map((t) => t.y))].sort((a, b) => a - b).map((y) => y - CHART.rule.firstY);
+    const ourBaselines = [...new Set(ourTexts.filter((t) => t.size === 16 && t.y > 30 && t.y < rules[1]!).map((t) => t.y))].sort((a, b) => a - b);
     expect(ourBaselines).toHaveLength(8);
-    ourBaselines.forEach((y, i) => expect(Math.abs(y - origBaselines[i]!)).toBeLessThan(0.3));
+    expect(ourBaselines[0]! - rules[0]!).toBeCloseTo(CHART.section.padTop + CHART.row.baseline, 1);
+    ourBaselines.forEach((y, i) => expect(y - ourBaselines[0]!).toBeCloseTo(i * CHART.row.height, 1));
+    expect(rules[1]! - ourBaselines[7]!).toBeCloseTo(CHART.row.height - CHART.row.baseline + CHART.section.padBottom, 1);
   });
 
   it("colors the Chorus label because a Repeat Chorus follows (blue: the only repeated section)", () => {

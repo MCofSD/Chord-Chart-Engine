@@ -36,8 +36,11 @@ npm install
 | `npm run typecheck` | Type-checks the code without building. |
 | `npx tsx scripts/render-chart.ts <chart.json> [outDir]` | Renders a chart file to one SVG per page (default output: `preview/charts/`). |
 | `npx tsx scripts/import-samples.ts` | Converts the Corel sample SVGs to voicing JSON and prints it. Add `--write` to update the test fixtures. |
+| `npm run import-chart -- "<chart.pdf>" [outDir]` | Imports a legacy chart PDF into chart JSON, with its notation images, a `review.txt` of everything to check, and side-by-side comparison images. Writes to `local/imports/<name>/` and never overwrites an existing chart without `--force`. |
 
 ## How it works
+
+All formatting rules (colors, fonts, sizes, spacing, rhythm and alignment, the Legend vocabulary, section names, and how the old Word-made PDFs encode things) live in one file, [rules/chart-rules.json](rules/chart-rules.json). The renderer and the PDF importer both read it, so changing a rule there needs no code change.
 
 ```
 Corel SVG ──► importer ──► Voicing JSON ──► renderDiagram() ──► SVG
@@ -78,13 +81,15 @@ src/
   model/       Data types and JSON schemas (voicing, chart)
   diagram/     Chord diagram SVG renderer and style tokens
   chart/       Chart page renderer
-  importers/   corel-svg: CorelDRAW SVG to voicing JSON
+  importers/   corel-svg: CorelDRAW SVG to voicing JSON; pdf-chart: legacy chart PDF to chart JSON
+  rules/       Loader for rules/chart-rules.json
   legend/      Music Legend symbol registry
   text/        Font metrics and glyph outlines
 scripts/       Preview builder, chart renderer, font and glyph generators
 test/          Unit tests, visual tests, fixtures
 assets/fonts/  Arimo, Carlito, Noto Music, Noto Sans Math (open licenses)
 samples/       Original files used as ground truth (read-only)
+rules/         chart-rules.json: the formatting rules
 ```
 
 The song charts used as references (PDF and Word) contain copyrighted lyrics, so they are **not in this repository**. The chord diagram SVGs and cover templates are. The chart-vs-original visual test and the matching preview section run only on a machine that has local copies of the charts; everywhere else they are skipped.

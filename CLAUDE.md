@@ -36,6 +36,8 @@ Do not start items 3 and later until asked.
 
 Status (2026-11-08): item 1 done. Item 3 started at the owner's request, ahead of item 2: phase 1 renders charts from `src/model/chart.ts` to SVG pages (`src/chart/`), with decisions and measurements in NOTES.md. Item 2 (cover layout solver) not started.
 
+Status (2026-11-09): rhythm spacing done (NOTES.md). Item 5 started at the owner's request: a PDF chart importer (`src/importers/pdf-chart/`, `npm run import-chart`). **All formatting rules live in `rules/chart-rules.json`**, read by both the renderer and the importer; a rule change must need no code change in either (owner). Put new rules there, not in code.
+
 ## 3. Sample files (ground truth)
 
 Put these under `samples/` (copy from the project owner; do not modify them):
@@ -237,3 +239,4 @@ Point sizes at 100% (1 R = 18.665 pt): root 24 pt, root flat/sharp 20 pt, qualit
 6. Publish into WordPress or replace its membership and library features?
 7. Do covers need alternate voicing sets per instrument (e.g. "for Acoustic")? How are they chosen?
 8. Is the "Original" label in the title block a version field (e.g. transposed versions)?
+9. ~~Importer findings~~ Answered 2026-11-09 (details in NOTES.md): `/E` with no chord = same chord, new bass; `(+Drm)[4]` = the instrument comes in on beat 4; free-text instructions are kept as text items; pagination keeps sections whole and squishes vertical spacing (never fonts) to stay on 2 pages when that is possible.

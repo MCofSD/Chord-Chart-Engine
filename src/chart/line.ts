@@ -37,6 +37,8 @@ function lyricRun(text: string, style: LyricStyle | undefined): Run {
 }
 
 const isLetter = (ch: string | undefined) => ch !== undefined && /[\p{L}\p{N}'’]/u.test(ch);
+/** Punctuation that opens a word ("I, (yeah, ¿qué): it moves with the word when a gap opens before it. */
+const isOpening = (ch: string | undefined) => ch !== undefined && /["“‘(\[¿¡]/.test(ch);
 
 export interface LineOptions {
   left?: number;
@@ -166,10 +168,13 @@ export function layoutLine(block: LineBlock, opts: LineOptions = {}): LaidLine {
   /** Opens the lyric so character `m.at` starts no earlier than its time. */
   const placeMark = (m: { at: number; t: number }) => {
     enter();
-    emitUntil(m.at);
+    let ins = m.at;
+    while (ins > charIdx && isOpening(text[ins - 1])) ins--;
+    emitUntil(ins);
+    const lead = measure(ins, m.at) ?? 0;
     const half = syllableHalf(m.at);
-    openGap(ideal(m.t) - half - lyricX, m.at);
-    placedAt(m.t, lyricX + half);
+    openGap(ideal(m.t) - half - lead - lyricX, ins);
+    placedAt(m.t, lyricX + lead + half);
     lastAt = Math.max(lastAt, m.at - 1);
   };
 
@@ -200,6 +205,8 @@ export function layoutLine(block: LineBlock, opts: LineOptions = {}): LaidLine {
       // word moves as a whole), but never before an earlier anchor in that word.
       let ins = at;
       while (ins > 0 && ins > lastAt + 1 && ins > charIdx && isLetter(text[ins - 1]) && isLetter(text[ins])) ins--;
+      // Opening punctuation goes with its word, unless it was already drawn.
+      while (ins > charIdx && isOpening(text[ins - 1])) ins--;
       emitUntil(ins);
       const lead = measure(ins, at);
       if (lead === undefined) { emitUntil(at); ins = at; }
@@ -212,17 +219,21 @@ export function layoutLine(block: LineBlock, opts: LineOptions = {}): LaidLine {
     } else {
       // "before"/"after": the chord sits over white space between two syllables,
       // near the one it belongs to. `textEnd` is where the previous syllable's ink ends.
-      emitUntil(at);
+      // The gap opens before any opening punctuation of the word ("(thanks").
+      let ins = at;
+      // Opening punctuation goes with its word, unless it was already drawn.
+      while (ins > charIdx && isOpening(text[ins - 1])) ins--;
+      emitUntil(ins);
       let spaces = 0;
-      while (at - spaces > 0 && /\s/.test(text[at - spaces - 1]!)) spaces++;
-      const textEnd = lyricX - (measure(at - spaces, at) ?? 0);
-      const hasPrev = at - spaces > 0;
+      while (ins - spaces > 0 && /\s/.test(text[ins - spaces - 1]!)) spaces++;
+      const textEnd = lyricX - (measure(ins - spaces, ins) ?? 0);
+      const hasPrev = ins - spaces > 0;
       if (place === "before") {
         x = Math.max(lyricX - S.timingNear - w, hasPrev ? textEnd + S.timingFar : left, minX, timeX);
-        openGap(x + w + S.timingNear - lyricX, at, textEnd);
+        openGap(x + w + S.timingNear - lyricX, ins, textEnd);
       } else {
         x = Math.max(hasPrev ? textEnd + S.timingNear : left, minX, timeX);
-        if (at < text.length) openGap(x + w + S.timingFar - lyricX, at, textEnd);
+        if (at < text.length) openGap(x + w + S.timingFar - lyricX, ins, textEnd);
       }
     }
     chords.push({ x, runs });

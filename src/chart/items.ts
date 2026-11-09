@@ -36,6 +36,14 @@ export function beatRuns(beats: string): Run[] {
   ];
 }
 
+/** "/F#": the slash and bass letter at bass size, its flat/sharp as a symbol. */
+function bassRuns(bass: string, fill: string): Run[] {
+  const runs: Run[] = [{ kind: "text", text: "/" + bass.charAt(0), size: K.bassSize, face: "arial", fill }];
+  const acc = bass.slice(1);
+  if (acc) runs.push(accidental(acc, K.bassAccidentalSize, fill));
+  return runs;
+}
+
 export function chordRuns(chord: ChordName, opts: { beats?: string; noBass?: boolean; paren?: boolean } = {}): Run[] {
   const fill = opts.noBass ? C.noBass : C.ink;
   const runs: Run[] = [];
@@ -46,9 +54,7 @@ export function chordRuns(chord: ChordName, opts: { beats?: string; noBass?: boo
   if (chord.bass) {
     // Tuck the slash under a superscript, as on the cover diagrams.
     if (chord.quality) runs.push({ kind: "space", width: -(chord.quality.endsWith(")") ? K.slashTuckAfterParen : K.slashTuck) });
-    runs.push({ kind: "text", text: "/" + chord.bass.charAt(0), size: K.bassSize, face: "arial", fill });
-    const acc = chord.bass.slice(1);
-    if (acc) runs.push(accidental(acc, K.bassAccidentalSize, fill));
+    runs.push(...bassRuns(chord.bass, fill));
   }
   // The beat tag comes last, after any bass ("C7/E[2a]" in the files).
   if (opts.beats) runs.push(...beatRuns(opts.beats));
@@ -133,7 +139,22 @@ export function itemRuns(item: ChordLineItem): Run[] {
         item.op === "only" ? { kind: "glyph", glyph: CIRCLED_PLUS, size: M.smallSize, fill: C.red }
         : item.op === "except" ? { kind: "glyph", glyph: CIRCLED_TIMES, size: M.smallSize, fill: C.red }
         : small(item.op === "add" ? "+" : "-", C.red, "arialBold");
-      return [small("(", C.ink), op, small(item.text, C.red), small(")", C.ink)];
+      const runs = [small("(", C.ink), op, small(item.text, C.red), small(")", C.ink)];
+      return item.beats ? [...runs, ...beatRuns(item.beats)] : runs;
+    }
+    case "bass": {
+      const runs = bassRuns(item.bass, C.ink);
+      return item.beats ? [...runs, ...beatRuns(item.beats)] : runs;
+    }
+    case "text": {
+      // Free text in red, with any circled plus/times drawn as the Legend symbols.
+      const body: Run[] = [];
+      for (const part of item.text.split(/([⊕⊗])/u)) {
+        if (part === "⊕") body.push({ kind: "glyph", glyph: CIRCLED_PLUS, size: M.smallSize, fill: C.red });
+        else if (part === "⊗") body.push({ kind: "glyph", glyph: CIRCLED_TIMES, size: M.smallSize, fill: C.red });
+        else if (part) body.push(small(part, C.red));
+      }
+      return item.paren === false ? body : [small("(", C.ink), ...body, small(")", C.ink)];
     }
     case "stop": {
       const slash: Run = { kind: "text", text: "//", size: M.size, face: "arialBold", fill: item.kind === "hold" ? C.green : C.red };
@@ -199,6 +220,8 @@ export function groupRuns(items: ChordLineItem[]): { runs: Run[]; hang: number; 
         if (item.paren !== undefined) opts.paren = item.paren;
         beatPoint = before + chordBeatPoint(item.chord, opts);
       } else if (item.t === "same") beatPoint = before + runsWidth(itemRuns(item)) / 2;
+      else if (item.t === "bass") beatPoint = before + runsWidth(bassRuns(item.bass, C.ink)) / 2;
+      else if (item.t === "instrument" && item.beats !== undefined) beatPoint = before + runsWidth(itemRuns({ t: "instrument", op: item.op, text: item.text })) / 2;
       else if (item.t === "stop" && item.beats !== undefined) {
         const slashAt = item.beatsFirst ? before + runsWidth(beatRuns(item.beats)) : before;
         beatPoint = slashAt + runsWidth(itemRuns({ t: "stop", kind: item.kind })) / 2;

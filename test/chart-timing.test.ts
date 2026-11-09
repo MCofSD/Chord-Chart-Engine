@@ -173,3 +173,58 @@ describe("snippet time axis", () => {
     expect(x + textWidth("there", CHART.lyric.size) / 2).toBeCloseTo(L + 210, 1);
   });
 });
+
+describe("new chord-line items (owner, 2026-11-09)", () => {
+  it("times a bass change like a chord change", () => {
+    expect(times(groups([bar, ch("C")], [{ t: "bass", bass: "E" }]))).toEqual([0, 2]); // second change: middle beat
+    expect(times(groups([bar, ch("C")], [{ t: "bass", bass: "E", beats: "4&" }]))).toEqual([0, 3.5]);
+  });
+
+  it("times an instrument mark with a beat tag, without using up the chord defaults", () => {
+    expect(times(groups([bar, ch("G")], [{ t: "instrument", op: "add", text: "Drm", beats: "4" }]))).toEqual([0, 3]);
+    expect(times(groups([bar, ch("G")], [{ t: "instrument", op: "add", text: "Drm", beats: "2" }], [ch("C")]))).toEqual([0, 1, 2]);
+  });
+
+  it("draws a bass change as /E, an instrument's beat tag after it, and free text in red parentheses with the Legend symbols", () => {
+    const svgOf = (items: ChordLineItem[]) => renderChart({ meta: { title: "T", artist: "A", key: "C" }, sections: [{ type: "verse", label: "V", blocks: [groups(items)] }] }).pages[0]!;
+    expect(svgOf([{ t: "bass", bass: "E", beats: "4" }])).toMatch(/>\/E<\/text>.*>4<\/text>/s);
+    expect(svgOf([{ t: "instrument", op: "add", text: "Drm", beats: "4" }])).toMatch(/>Drm<\/text>.*>\)<\/text>.*>\[<\/text>.*>4<\/text>/s);
+    const free = svgOf([{ t: "text", text: "then Chorus ⊗last two bars" }]);
+    expect(free).toMatch(/>then Chorus <\/text>/);
+    expect(free).not.toMatch(/⊗/); // drawn as an outline, not a character
+    expect(free).toMatch(/>last two bars<\/text>/);
+  });
+});
+
+describe("pagination: whole sections, squished to stay on 2 pages (owner, 2026-11-09)", () => {
+  // Sections of four chord+lyric lines (made-up text).
+  const section = (n: number) => ({
+    type: "verse" as const, label: `S${n}`,
+    blocks: Array.from({ length: 4 }, () => line([{ at: 0, items: [bar, ch("G")] }], "la la la")),
+  });
+  const chartOf = (n: number): Chart => ({ meta: { title: "T", artist: "A", key: "C" }, sections: Array.from({ length: n }, (_, i) => section(i + 1)) });
+  const labelPage = (pages: string[], label: string) => pages.findIndex((p) => p.includes(`>${label}</text>`));
+
+  it("leaves a chart that fits alone", () => {
+    const r = renderChart(chartOf(4));
+    expect(r.pages.length).toBe(1);
+    expect(r.warnings.join()).not.toMatch(/tightened/);
+  });
+
+  it("squishes vertical spacing just enough to keep a 3-page chart on 2 pages, sections whole", () => {
+    const r = renderChart(chartOf(9));
+    expect(r.pages.length).toBe(2);
+    expect(r.warnings.join()).toMatch(/tightened to fit 2 page/);
+    // Each section starts and ends on one page: its four lines' lyric rows are on its label's page.
+    for (let i = 1; i <= 9; i++) expect(labelPage(r.pages, `S${i}`)).toBeGreaterThanOrEqual(0);
+    const lyricsPerPage = r.pages.map((p) => (p.match(/>la la la<\/text>/g) ?? []).length);
+    expect(lyricsPerPage.every((n) => n % 4 === 0)).toBe(true);
+  });
+
+  it("keeps normal spacing when even the tightest spacing cannot reach 2 pages", () => {
+    const r = renderChart(chartOf(30));
+    expect(r.pages.length).toBeGreaterThan(2);
+    expect(r.warnings.join()).toMatch(/aim is 2/);
+    expect(r.warnings.join()).not.toMatch(/tightened/);
+  });
+});

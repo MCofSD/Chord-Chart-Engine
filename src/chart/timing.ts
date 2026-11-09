@@ -12,8 +12,9 @@
  * - Content before the first bar line (a pickup) is untimed.
  */
 import { beatOffset, type Anchor, type ChordLineItem, type LineBlock, type Meter } from "../model/chart.js";
+import { RULES } from "../rules/index.js";
 
-export const DEFAULT_METER: Meter = { top: 4, bottom: 4 };
+export const DEFAULT_METER: Meter = RULES.timing.defaultMeter;
 
 export interface BarInfo {
   /** Index (in `anchors`) of the group holding this bar's bar line. */
@@ -67,13 +68,14 @@ export function lineTiming(block: LineBlock, meter: Meter = DEFAULT_METER): Line
   const itemTime = (item: ChordLineItem, describe: string): number | undefined => {
     if (!bar) return undefined;
     let beat: number | undefined;
-    if (item.t === "chord" && item.beats !== undefined) {
+    // A bass change ("/E") is timed like a chord change.
+    if ((item.t === "chord" || item.t === "bass") && item.beats !== undefined) {
       beat = firstBeat(item.beats);
       if (beat === undefined) warnings.push(`bar ${bars.length}: beat tag "${item.beats}" on ${describe} not understood`);
       usedFirst = true; // a tagged chord still counts as the bar's first chord
-    } else if (item.t === "stop" && item.beats !== undefined) {
+    } else if ((item.t === "stop" || item.t === "instrument") && item.beats !== undefined) {
       beat = firstBeat(item.beats);
-    } else if (item.t === "chord" || item.t === "same") {
+    } else if (item.t === "chord" || item.t === "same" || item.t === "bass") {
       if (!usedFirst) { beat = 0; usedFirst = true; }
       else {
         const mid = middleBeat(bar.beats);
@@ -99,7 +101,7 @@ export function lineTiming(block: LineBlock, meter: Meter = DEFAULT_METER): Line
         if (bar) bar.beats = item.top;
         return;
       }
-      const describe = item.t === "chord" ? `chord ${item.chord.root}${item.chord.accidental ?? ""}${item.chord.quality ?? ""}` : `"${item.t}"`;
+      const describe = item.t === "chord" ? `chord ${item.chord.root}${item.chord.accidental ?? ""}${item.chord.quality ?? ""}` : item.t === "bass" ? `bass change /${item.bass}` : `"${item.t}"`;
       const t = itemTime(item, describe);
       if (t !== undefined && times[ai] === undefined) times[ai] = t;
     });

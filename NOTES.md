@@ -132,3 +132,39 @@ Side-by-side images: `test/output/chart-chorus-*.png`, and in `preview/index.htm
 4. Bottom limit for page breaks set to 779 pt (sections that don't fit move to the next page; a section is split only if taller than a page). (verify)
 5. A color for a fourth repeated section, if ever needed (purple is reused for now).
 6. The `before`/`after` spacing (2 pt near, 12 pt far) is a first guess; check it on a real chart.
+
+# Formatting rules file and PDF chart importer
+
+## Rules file (owner, 2026-11-09)
+
+All formatting rules live in [rules/chart-rules.json](rules/chart-rules.json), read by both the renderer and the importer, so changing a rule needs no code change in either tool. Keys starting with `_` are notes. Sections:
+- `legend`: Legend mark colors. `render`: everything the renderer draws with (was `src/chart/tokens.ts`, now a typed view of this). `timing`: default meter.
+- `sections`: label -> section type patterns (also used for "Repeat ..." lines). `symbols`: the chord-line vocabulary (instruments, directions, stops by color, riff glyphs, minor pattern...).
+- `import`: how the legacy Word PDFs encode things (lyric grays, label column, superscript raise, the legacy beat width...). These describe the old files, so they stay put when the drawing rules change.
+
+Moving the values into JSON changed no output: the demo, the chorus fixture and the local Since U Been Gone chart render byte-for-byte the same.
+
+## PDF chart importer
+
+`npm run import-chart -- "<chart.pdf>" [outDir] [--force]` writes the chart JSON, its notation images, `review.txt` and a side-by-side `compare-p<N>.png` (original left, our render right) to `local/imports/<name>/` (gitignored). It never overwrites an existing chart JSON without `--force`. Code: [src/importers/pdf-chart/](src/importers/pdf-chart/).
+
+How it reads a page: characters (with font, size, color, baseline), images and section rules come from the PDF; rules split sections; the label column gives the label (type via `sections`); text is grouped into rows by baseline (superscripts join the row below; spaces only separate words); a row is lyric (mostly gray, no superscripts or bar lines), chord, or "Repeat ..." note. A chord row is tokenized with the `symbols` vocabulary; a chord row and the lyric row under it form one line. Each chord group is pinned to the syllable under its weighted middle (same weights as the renderer); a chord in the gap between syllables gets `before`/`after` and a flag. Tiny images inside parentheses are the circled plus/times (told apart by their pixels). Wide images are notation snippets: split at blank bands where a lyric line sits inside them, bars measured from the staff (bar lines and note columns), text over their top band becomes the overlay.
+
+Guesses, all flagged in `review.txt`:
+- `lyricEntry`: distance from the opening bar line to the lyric start / `import.legacyBeatWidth` (25.2), rounded to eighths. Matches every entry the owner confirmed on Since U Been Gone.
+- Rhythm marks for a lyric line under a notation image: each syllable's middle against the image's bars, rounded to eighths. On SUBG verse line 2 this got 8 of 9 syllables of the owner's rhythm; line 1 differs on 4 syllables because the original's hand spacing does.
+- Snippet timelines: measured automatically (matched a hand measurement within 0.2 pt).
+
+Checked on all five sample PDFs: every section, chord, beat tag, stop, ending, aside, riff number and instrument mark of Since U Been Gone is read (its chorus matches the hand-made fixture exactly; local test). Remaining flags on the other charts are things the model can't hold yet or free text: see open questions below.
+
+## Decisions (owner, 2026-11-09)
+
+- **Pagination:** keep each section whole on one page (it moves to the next page if it doesn't fit; it splits only if taller than a page). Row height has a **max of 20 pt and a min of 17 pt** (owner; the originals measure 18.4). Every chart uses the max when it has room. If the chart would run past 2 pages, vertical spacing is squished just enough to stay on 2: row height and section padding shrink toward `render.squish`. Font sizes and notation images never shrink. If even the tightest spacing can't reach 2 pages, the max spacing is kept and the chart warns. With the 20 pt max: Awitin and So Easy fit at 20 pt, A Dios Le Pido needs a hair less, Since U Been Gone 18.5 pt; American Boy needs 3 pages even at 17, so it stays at 20 and warns. Both limits are (verify).
+- **Bass change without a chord** (`/E[4&]`): same chord, new bass. New chord-line item `{ t: "bass", bass, beats? }`, drawn like a slash bass and timed like a chord change.
+- **Beat tag on an instrument mark** (`(+Drm)[4]`): the instrument comes in (or drops out) on that beat. `instrument.beats`; drawn after the mark; gives the mark a time without using up the bar's beat-1/middle defaults.
+- **Free-text instructions** (`(Use chords for Verse, Refrain, then Chorus ⊕last two bars)`): new item `{ t: "text", text, paren? }`, red text in black parentheses; a ⊕ or ⊗ inside is drawn as the Legend symbol. The importer reads any parenthesized or red text it doesn't recognize as free text and flags it for a check.
+
+## Notes (importer)
+
+- Notation images placed off the content edge in the originals (x 21-57 pt) are drawn at the edge; their timelines and overlays are measured from the image itself, so lyrics still line up.
+- Still flagged by design: a label letter right of the label column (Awitin "End Ch" + "o" at x 44, past the content edge), and text over the middle of a notation image (dropped; it is part of the drawing).

@@ -93,12 +93,12 @@ describe("renderChart", () => {
     expect(labelFill(r.pages[0]!, "Bridge")).toBe(BLUE);
   });
 
-  it("puts the label on the first row's baseline and spaces rows 18.4 pt apart", () => {
+  it("puts the label on the first row's baseline and spaces rows by the max row height when there is room", () => {
     const svg = renderChart(chart([section("chorus", "Chorus", 2)])).pages[0]!;
     const ys = (s: string) => texts(svg).filter((x) => x.text === s).map((x) => Number(attr(x.attrs, "y")));
     const label = ys("Chorus")[0]!;
-    expect(label).toBeCloseTo(CHART.rule.firstY + 16.6, 1);
-    expect(ys("|")).toEqual([label, label + 2 * 18.4].map((v) => Math.round(v * 100) / 100));
+    expect(label).toBeCloseTo(CHART.rule.firstY + CHART.section.padTop + CHART.row.baseline, 1);
+    expect(ys("|")).toEqual([label, label + 2 * CHART.row.height].map((v) => Math.round(v * 100) / 100));
   });
 
   it("draws a rule under the header and after every section", () => {

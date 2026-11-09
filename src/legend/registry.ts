@@ -9,16 +9,10 @@
  * The chart renderer takes its colors from here; later the parser, editor
  * palette, validation and the printed Legend block will too.
  */
+import { RULES } from "../rules/index.js";
 
-export const LEGEND_COLORS = {
-  red: "#EE0000",
-  /** Beat-tag digits are a slightly different red in the files. */
-  beatRed: "#FF0000",
-  green: "#00B050",
-  /** Dark blue: the first repeated riff's circled numbers (and the down arrow). The second riff uses light #00B0F0 (src/chart/tokens.ts riffColors). */
-  blue: "#0000FF",
-  black: "#000000",
-} as const;
+/** Legend mark colors, from rules/chart-rules.json ("legend.colors"). */
+export const LEGEND_COLORS = RULES.legend.colors;
 
 export interface LegendEntry {
   id: string;
@@ -59,6 +53,11 @@ export const LEGEND: readonly LegendEntry[] = [
   { id: "meter", display: "stacked red numbers", confirmed: false },
   { id: "times", display: "(2x) red count", confirmed: false },
   { id: "adlib", display: "parentheses around lyrics", confirmed: false },
+
+  // Not in the printed Legend; meaning given by the owner (2026-11-09).
+  { id: "bassChange", display: "/E (slash and bass note, no chord)", confirmed: false, meaning: "Same chord, new bass note (owner, 2026-11-09)." },
+  { id: "instrumentBeat", display: "(+Drm)[4]", confirmed: false, meaning: "The instrument comes in (or drops out) on that beat, e.g. drums come in on beat 4 (owner, 2026-11-09)." },
+  { id: "freeText", display: "(Use chords for Verse) red text in parentheses", confirmed: false, meaning: "A free-text instruction to the band (owner, 2026-11-09)." },
 ];
 
 export function legendEntry(id: string): LegendEntry | undefined {

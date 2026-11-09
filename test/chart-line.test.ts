@@ -106,6 +106,21 @@ describe("layoutLine", () => {
     expect(beatX(laid, above, 1)).toBeCloseTo(midOf(laid, word + 2, word + 7), 6); // "lking"
   });
 
+  it("moves opening punctuation with its word when a gap opens before it", () => {
+    const lyric = 'oh "hello there"';
+    const at = lyric.indexOf("hello");
+    const laid = layoutLine(line([{ at: 0, items: [chord("F", { beats: "1&,2,3,4" })] }, { at, items: [chord("G")] }], lyric));
+    const quote = drawnCharX(laid, at - 1);
+    expect(drawnCharX(laid, at) - quote).toBeCloseTo(textWidth('"', CHART.lyric.size), 6); // no gap between " and hello
+  });
+
+  it("moves opening punctuation with its word for 'before'/'after' chords too", () => {
+    const lyric = "yeah (thanks to you)";
+    const at = lyric.indexOf("thanks");
+    const laid = layoutLine(line([{ at, place: "after", items: [chord("A", { beats: "1&,2,3,4" })] }], lyric));
+    expect(drawnCharX(laid, at) - drawnCharX(laid, at - 1)).toBeCloseTo(textWidth("(", CHART.lyric.size), 6);
+  });
+
   it("puts chords past the end of the lyric on the 0.5-inch tab grid, in order", () => {
     const laid = layoutLine(line([{ at: 999, items: [chord("C")] }, { at: 999, items: [chord("D")] }]));
     const stop = (x: number) => ((x - CHART.spacing.tabOrigin) / CHART.spacing.tabStop);
