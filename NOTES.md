@@ -146,7 +146,9 @@ Moving the values into JSON changed no output: the demo, the chorus fixture and 
 
 ## PDF chart importer
 
-`npm run import-chart -- "<chart.pdf>" [outDir] [--force]` writes the chart JSON, its notation images, `review.txt` and a side-by-side `compare-p<N>.png` (original left, our render right) to `local/imports/<name>/` (gitignored). It never overwrites an existing chart JSON without `--force`. Code: [src/importers/pdf-chart/](src/importers/pdf-chart/).
+`npm run import-chart -- "<chart.pdf>" [outDir]` writes the chart JSON, its notation images, a PDF and page PNGs of our rendering, `review.txt` and a side-by-side `compare-p<N>.png` (original left, our render right) to `local/imports/<name>/` (gitignored). Re-running replaces that folder's outputs (owner, 2026-11-09). Code: [src/importers/pdf-chart/](src/importers/pdf-chart/).
+
+**PDF export (interim):** pages are rasterized at 300 dpi with resvg and wrapped in a US Letter PDF by mupdf ([scripts/lib/output.ts](scripts/lib/output.ts)), since this mupdf build can't read SVG. Sharp in print; text is not selectable. CLAUDE.md §7 still leaves the final PDF stack open (headless Chromium, vector text).
 
 How it reads a page: characters (with font, size, color, baseline), images and section rules come from the PDF; rules split sections; the label column gives the label (type via `sections`); text is grouped into rows by baseline (superscripts join the row below; spaces only separate words); a row is lyric (mostly gray, no superscripts or bar lines), chord, or "Repeat ..." note. A chord row is tokenized with the `symbols` vocabulary; a chord row and the lyric row under it form one line. Each chord group is pinned to the syllable under its weighted middle (same weights as the renderer); a chord in the gap between syllables gets `before`/`after` and a flag. Tiny images inside parentheses are the circled plus/times (told apart by their pixels). Wide images are notation snippets: split at blank bands where a lyric line sits inside them, bars measured from the staff (bar lines and note columns), text over their top band becomes the overlay.
 
