@@ -1,0 +1,52 @@
+{
+  "chord": {
+    "root": "F",
+    "quality": "m"
+  },
+  "strings": [
+    {
+      "kind": "muted",
+      "fret": 1
+    },
+    {
+      "kind": "muted",
+      "fret": 3
+    },
+    {
+      "kind": "fretted",
+      "fret": 3,
+      "finger": 4
+    },
+    {
+      "kind": "fretted",
+      "fret": 1,
+      "finger": 1
+    },
+    {
+      "kind": "fretted",
+      "fret": 1,
+      "finger": 1
+    },
+    {
+      "kind": "muted",
+      "fret": 1
+    }
+  ],
+  "windowStartFret": 1,
+  "barres": [
+    {
+      "fret": 1,
+      "from": 0,
+      "to": 5,
+      "sounding": [
+        [
+          3,
+          4
+        ]
+      ]
+    }
+  ],
+  "review": [
+    "chord quality \"m\" used baseline-shift:super; positioned explicitly instead"
+  ]
+}

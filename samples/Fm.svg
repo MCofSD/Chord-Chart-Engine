@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Creator: CorelDRAW 2021 (64-Bit Not for commercial use) -->
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="1.25298in" height="1.53419in" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd"
+viewBox="0 0 377.26 461.92"
+ xmlns:xlink="http://www.w3.org/1999/xlink"
+ xmlns:xodm="http://www.corel.com/coreldraw/odm/2003">
+ <defs>
+  <font id="FontID1" horiz-adv-x="722" font-variant="normal" style="fill-rule:nonzero" font-style="normal" font-weight="700">
+	<font-face 
+		font-family="Arial">
+		<font-face-src>
+			<font-face-name name="Arial Bold"/>
+		</font-face-src>
+	</font-face>
+   <missing-glyph><path d="M0 0z"/></missing-glyph>
+   <glyph unicode="1" horiz-adv-x="556" d="M392.989 0l-136.989 0 0 518.331c-50.0094,-47.0094 -108.996,-81.8293 -177.006,-104.342l0 125.012c35.8358,11.6697 74.6716,33.8278 116.508,66.6635 42.0013,32.6703 70.6558,70.8448 86.3413,114.334l111.145 0 0 -719.999z"/>
+   <glyph unicode="4" horiz-adv-x="556" d="M311.01 0l0 144.001 -292.018 0 0 119.505 309.664 455.484 115.347 0 0 -454.988 88.985 0 0 -120.001 -88.985 0 0 -144.001 -132.993 0zm0 264.002l0 244.49 -163.678 -244.49 163.678 0z"/>
+   <glyph unicode="X" horiz-adv-x="666" d="M0.496079 0l247.165 373.335 -224.157 342.672 168.832 0 141.004 -213.172 140.981 213.172 169.186 0 -224.511 -342.838 246.504 -373.169 -173.675 0 -158.651 242.512 -158.674 -242.512 -174.005 0z"/>
+  </font>
+  <font id="FontID0" horiz-adv-x="667" font-variant="normal" style="fill-rule:nonzero" font-style="normal" font-weight="400">
+	<font-face 
+		font-family="Arial">
+		<font-face-src>
+			<font-face-name name="Arial"/>
+		</font-face-src>
+	</font-face>
+   <missing-glyph><path d="M0 0z"/></missing-glyph>
+   <glyph unicode="F" horiz-adv-x="610" d="M82.0036 0l0 716.005 482.998 0 0 -83.9997 -388.002 0 0 -223.003 335.999 0 0 -83.9997 -335.999 0 0 -325.003 -94.9957 0z"/>
+   <glyph unicode="m" horiz-adv-x="832" d="M65.999 0l0 518.992 78.9909 0 0 -73.3217c16.1808,25.3224 37.8419,45.826 64.8415,61.1565 26.9996,15.4958 57.6605,23.1729 92.1718,23.1729 38.338,0 69.8257,-8.00775 94.3213,-23.8343 24.5193,-15.9919 41.834,-38.1726 51.8496,-66.8257 41.3143,60.4951 94.8174,90.66 160.816,90.66 51.6842,0 91.5104,-14.173 119.171,-42.6607 27.85,-28.5114 41.834,-72.3296 41.834,-131.502l0 -355.837 -87.9907 0 0 326.664c0,35.0073 -2.99995,60.3298 -8.66915,75.8256 -5.6692,15.5194 -15.9919,27.85 -31.1806,37.3459 -14.9998,9.49591 -32.6452,14.173 -52.8181,14.173 -36.6608,0 -67.0147,-12.1652 -91.1797,-36.3301 -24.165,-24.3539 -36.1648,-63.188 -36.1648,-116.502l0 -301.176 -87.9907 0 0 336.845c0,38.9994 -7.15737,68.3139 -21.4957,87.8254 -14.3384,19.4879 -37.8419,29.3381 -70.3453,29.3381 -24.661,0 -47.5032,-6.51958 -68.5029,-19.5115 -20.9997,-12.9919 -36.1648,-32.0074 -45.6607,-57.1645 -9.33056,-24.9917 -14.0077,-61.1565 -14.0077,-108.329l0 -269.004 -87.9907 0z"/>
+  </font>
+  <style type="text/css">
+   <![CDATA[
+    @font-face { font-family:"Arial";font-variant:normal;font-style:normal;font-weight:bold;src:url("#FontID1") format(svg)}
+    @font-face { font-family:"Arial";font-variant:normal;font-style:normal;font-weight:normal;src:url("#FontID0") format(svg)}
+    .str0 {stroke:#373435;stroke-width:4.18;stroke-miterlimit:2.61313}
+    .str2 {stroke:#96989A;stroke-width:2.09;stroke-miterlimit:2.61313}
+    .str1 {stroke:#373435;stroke-width:2.09;stroke-miterlimit:2.61313}
+    .fil0 {fill:none}
+    .fil3 {fill:#FEFEFE}
+    .fil2 {fill:#96989A}
+    .fil1 {fill:#373435}
+    .fnt2 {font-weight:bold;font-size:50.18px;font-family:'Arial'}
+    .fnt3 {font-weight:bold;font-size:50.18px;font-family:'Arial'}
+    .fnt0 {font-weight:normal;font-size:100.36px;font-family:'Arial'}
+    .fnt1 {font-weight:normal;font-size:50.18px;font-family:'Arial';baseline-shift:super}
+   ]]>
+  </style>
+ </defs>
+ <g id="Layer_x0020_1">
+  <metadata id="CorelCorpID_0Corel-Layer"/>
+  <g id="_2195382450432">
+   <g>
+    <line class="fil0" x1="28.93" y1="186.65" x2="348.33" y2= "186.65" />
+    <line class="fil0" x1="28.93" y1="264.7" x2="348.33" y2= "264.7" />
+    <line class="fil0" x1="28.93" y1="342.76" x2="348.33" y2= "342.76" />
+    <line class="fil0" x1="28.93" y1="420.81" x2="348.33" y2= "420.81" />
+    <rect class="fil0 str0" x="28.93" y="131.35" width="319.4" height="328.48"/>
+    <line class="fil0 str0" x1="92.76" y1="131.35" x2="92.76" y2= "459.83" />
+    <line class="fil0 str0" x1="156.65" y1="131.35" x2="156.65" y2= "459.83" />
+    <line class="fil0 str0" x1="220.54" y1="131.35" x2="220.54" y2= "459.83" />
+    <line class="fil0 str0" x1="284.44" y1="131.35" x2="284.44" y2= "459.83" />
+    <line class="fil0 str0" x1="28.93" y1="147.62" x2="348.33" y2= "147.62" />
+    <line class="fil0 str0" x1="28.93" y1="303.73" x2="348.33" y2= "303.73" />
+    <line class="fil0 str0" x1="28.93" y1="381.78" x2="348.33" y2= "381.78" />
+    <line class="fil0 str0" x1="28.93" y1="225.68" x2="348.33" y2= "225.68" />
+   </g>
+   <circle class="fil0" cx="348.33" cy="420.81" r="27.88"/>
+   <rect class="fil1 str1" x="220.54" y="168.46" width="77.65" height="36.38"/>
+   <rect class="fil2 str2" x="28.93" y="168.46" width="191.62" height="36.38"/>
+   <rect class="fil2 str2" x="284.44" y="168.46" width="66.11" height="36.38"/>
+   <text x="141.58" y="76.78"  class="fil1 fnt0">F</text>
+   <text x="202.89" y="26.6"  class="fil1 fnt1">m</text>
+   <g>
+    <circle class="fil2 str2" cx="28.93" cy="186.65" r="27.88"/>
+    <text x="14.44" y="204.69"  class="fil3 fnt2">X</text>
+   </g>
+   <g>
+    <circle class="fil2 str2" cx="87.26" cy="340.22" r="27.88"/>
+    <text x="72.77" y="358.26"  class="fil3 fnt2">X</text>
+   </g>
+   <g>
+    <circle class="fil2 str2" cx="348.33" cy="186.65" r="27.88"/>
+    <text x="333.84" y="204.69"  class="fil3 fnt2">X</text>
+   </g>
+   <g>
+    <circle class="fil1 str1" cx="220.54" cy="186.65" r="27.88"/>
+    <text x="206.05" y="204.69"  class="fil3 fnt2">1</text>
+   </g>
+   <g>
+    <circle class="fil1 str1" cx="284.44" cy="186.65" r="27.88"/>
+    <text x="269.95" y="204.69"  class="fil3 fnt2">1</text>
+   </g>
+   <g>
+    <circle class="fil1 str1" cx="156.65" cy="342.76" r="27.88"/>
+    <text x="142.84" y="360.72"  class="fil3 fnt3">4</text>
+   </g>
+  </g>
+ </g>
+</svg>

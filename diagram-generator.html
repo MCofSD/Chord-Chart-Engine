@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chord diagram generator</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Arimo:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+:root{--bg:#f5f7fa;--fg:#1c2430;--mut:#566273;--card:#fff;--line:#c9d2de;--navy:#1b4f8c;--blue:#cfe3f5;--acc:#1b4f8c;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161c;--fg:#e8edf3;--mut:#9aa6b5;--card:#1a2029;--line:#2c3643;--acc:#8fbbec;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12161c;--fg:#e8edf3;--mut:#9aa6b5;--card:#1a2029;--line:#2c3643;--acc:#8fbbec;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 Arimo,Arial,"Liberation Sans",sans-serif}
+main{max-width:980px;margin:0 auto;padding:28px 20px 48px}
+h1{font-size:30px;line-height:1.15;margin:0 0 8px}
+h2{font-size:19px;margin:34px 0 10px}
+p{margin:0 0 12px;max-width:68ch}
+.mut{color:var(--mut)}
+.panel{background:var(--blue);border:1px solid #8fb6dc;color:#1c2430}
+.panel>h3{background:var(--navy);color:#fff;margin:0;padding:10px 14px;font-size:18px}
+.row{display:flex;flex-wrap:wrap;gap:20px 26px;padding:18px 20px;align-items:flex-end}
+figure{margin:0}
+figcaption{font-size:13px;margin-top:4px}
+.ed{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;align-items:start}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+select,button,textarea{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:4px}
+select,button{padding:6px 12px;min-height:36px}
+button[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);color:#fff}
+textarea{width:100%;min-height:330px;padding:10px;font:13px/1.45 ui-monospace,Menlo,Consolas,monospace;resize:vertical}
+:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+#err{color:#b3261e;min-height:1.5em;margin:6px 0 0;font-size:14px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #err{color:#ff8a80}}
+ul{margin:0 0 12px;padding-left:20px;max-width:68ch}
+</style>
+</head>
+<body>
+<main>
+<h1>Chord diagram generator</h1>
+<p>Each diagram below is drawn from a small data record, using the measurements and colors taken from your four Corel files. Change the data and the diagram updates.</p>
+
+<h2>The four samples, drawn from data</h2>
+<div class="panel">
+<h3>Fm, Eb, Bb, Ab</h3>
+<div class="row" id="gallery"></div>
+</div>
+
+<h2>Edit a voicing</h2>
+<div class="ctl">
+<label for="pick">Start from</label>
+<select id="pick"></select>
+<span class="mut" style="margin-left:8px">Cover scale</span>
+<button type="button" data-s="26" aria-pressed="true">100%</button>
+<button type="button" data-s="17" aria-pressed="false">65%</button>
+<button type="button" data-s="15.6" aria-pressed="false">60%</button>
+</div>
+<div class="ed">
+<div>
+<label for="json" class="mut">Voicing data</label>
+<textarea id="json" spellcheck="false"></textarea>
+<p id="err" role="alert"></p>
+</div>
+<div class="panel"><h3>Preview</h3><div class="row" id="prev"></div></div>
+</div>
+
+<h2>What to check</h2>
+<ul>
+<li>Compare each diagram with your Corel original: dot size, barre height, name spacing, fret number position.</li>
+<li>Strings are listed left to right. Rows count down from 0. A barre can have a sounding span, drawn dark inside the gray bar, as in your Fm.</li>
+<li>Not done yet: the pixel-level comparison against your SVGs, the SVG importer, and the voicing library. Those belong in the repo.</li>
+</ul>
+</main>
+<script>
+const D="#373435",G="#96989A",L="#FEFEFE",FF="Arimo,Arial,'Liberation Sans',sans-serif";
+const AW={A:667,B:667,C:722,D:722,E:667,F:611,G:778,b:556,"#":556,m:833,M:833,a:556,j:222,s:500,u:556,d:556,i:222,n:556,o:556,g:556,l:222,t:278,r:333,e:556,c:500,p:556,"(":333,")":333,"/":278,"+":584,"-":333};
+const tw=(s,f)=>[...s].reduce((a,c)=>a+(AW[c]??556),0)*f/1000;
+const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+
+/* Pure function: voicing data in, SVG string out. R = one fret row = 100 units. */
+function render(v,rpx){
+  const cg=81.8,band=20.8,top=165,gw=cg*5,gh=band+400,lbl=v.fretLabel;
+  const x0=lbl?90:37,W=x0+gw+37,H=top+gh+3;
+  const sx=i=>x0+i*cg,ry=r=>top+band+r*100+50;
+  const ln=(a,b,c,d)=>`<line x1="${a}" y1="${b}" x2="${c}" y2="${d}"/>`;
+  let g=`<g stroke="${D}" stroke-width="5.36" fill="none"><rect x="${x0}" y="${top}" width="${gw}" height="${gh}"/>`;
+  for(let i=1;i<5;i++)g+=ln(sx(i),top,sx(i),top+gh);
+  for(let j=0;j<4;j++)g+=ln(x0,top+band+j*100,x0+gw,top+band+j*100);
+  g+="</g>";
+  const c=v.chord||{},rs=128.6,by=top-70;
+  const parts=[[c.root||"",rs,0],[c.acc||"",107.2,0],[c.quality||"",64.3,-64.3],[c.bass?"/"+c.bass:"",rs,0]];
+  let x=x0+gw/2-parts.reduce((a,p)=>a+tw(p[0],p[1]),0)/2,t="";
+  for(const [s,z,dy] of parts){if(!s)continue;t+=`<text x="${x.toFixed(1)}" y="${by+dy}" font-size="${z}">${esc(s)}</text>`;x+=tw(s,z);}
+  const st=v.strings||[];
+  st.forEach((s,i)=>{if(s.s==="x")t+=`<text x="${sx(i)}" y="${top-15}" font-size="75" text-anchor="middle">x</text>`;});
+  let b="";
+  for(const r of v.barres||[]){
+    const y=ry(r.row)-23.3;
+    b+=`<rect x="${sx(r.from)}" y="${y}" width="${sx(r.to)-sx(r.from)}" height="46.6" fill="${G}" stroke="${G}" stroke-width="2.68"/>`;
+    if(r.sounding)b+=`<rect x="${sx(r.sounding[0])}" y="${y}" width="${sx(r.sounding[1])-sx(r.sounding[0])}" height="46.6" fill="${D}" stroke="${D}" stroke-width="2.68"/>`;
+  }
+  let d="";
+  st.forEach((s,i)=>{
+    if(s.s!=="fret"&&!(s.s==="muted"&&s.row!=null))return;
+    const cy=ry(s.row),col=s.s==="fret"?D:G;
+    d+=`<circle cx="${sx(i)}" cy="${cy}" r="35.7" fill="${col}" stroke="${col}" stroke-width="2.68"/>`;
+    d+=`<text x="${sx(i)}" y="${cy+23.1}" font-size="64.3" font-weight="700" text-anchor="middle" fill="${L}">${s.s==="fret"?esc(s.f??""):"X"}</text>`;
+  });
+  if(lbl)t+=`<text x="${x0-44}" y="${ry(lbl.row)+35}" font-size="96.4" font-style="italic" text-anchor="end">${esc(lbl.text)}</text>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${(W*rpx/100).toFixed(1)}" height="${(H*rpx/100).toFixed(1)}" role="img" aria-label="${esc((c.root||"")+(c.acc||"")+(c.quality||""))} chord diagram">${g}${b}<g font-family="${FF}" fill="${D}">${t}</g>${d}</svg>`;
+}
+
+const S={
+ Fm:{chord:{root:"F",quality:"m"},strings:[{s:"muted",row:0},{s:"muted",row:2},{s:"fret",row:2,f:4},{s:"fret",row:0,f:1},{s:"fret",row:0,f:1},{s:"muted",row:0}],barres:[{row:0,from:0,to:5,sounding:[3,4]}]},
+ Eb:{chord:{root:"E",acc:"b"},fretLabel:{row:3,text:"6"},strings:[{s:"x"},{s:"fret",row:3,f:4},{s:"fret",row:2,f:3},{s:"fret",row:0,f:1},{s:"x"},{s:"x"}]},
+ Bb:{chord:{root:"B",acc:"b"},fretLabel:{row:1,text:"6"},strings:[{s:"muted",row:1},{s:"muted",row:3},{s:"fret",row:3,f:4},{s:"fret",row:2,f:2},{s:"fret",row:1,f:1},{s:"muted",row:1}],barres:[{row:1,from:0,to:5}]},
+ Ab:{chord:{root:"A",acc:"b"},fretLabel:{row:1,text:"4"},strings:[{s:"muted",row:1},{s:"muted",row:3},{s:"fret",row:3,f:3},{s:"fret",row:2,f:2},{s:"fret",row:1,f:1},{s:"muted",row:1}],barres:[{row:1,from:0,to:5}]}
+};
+const $=id=>document.getElementById(id);
+$("gallery").innerHTML=Object.entries(S).map(([k,v])=>`<figure>${render(v,26)}<figcaption>${k}</figcaption></figure>`).join("");
+$("pick").innerHTML=Object.keys(S).map(k=>`<option>${k}</option>`).join("");
+
+let scale=26;
+function draw(){
+  try{
+    const v=JSON.parse($("json").value);
+    if(!Array.isArray(v.strings)||v.strings.length!==6)throw new Error("“strings” needs exactly 6 entries, left to right.");
+    $("prev").innerHTML=render(v,scale);$("err").textContent="";
+  }catch(e){$("err").textContent="Can’t draw this yet: "+e.message;}
+}
+function load(k){$("json").value=JSON.stringify(S[k],null,1).replace(/\n\s+(?=[^\s\[\]{}])/g," ").replace(/\n\s*([}\]])/g," $1");draw();}
+$("pick").addEventListener("change",e=>load(e.target.value));
+$("json").addEventListener("input",draw);
+document.querySelectorAll("button[data-s]").forEach(b=>b.addEventListener("click",()=>{
+  scale=+b.dataset.s;
+  document.querySelectorAll("button[data-s]").forEach(o=>o.setAttribute("aria-pressed",o===b));
+  draw();
+}));
+load("Fm");
+</script>
+</body>
+</html>

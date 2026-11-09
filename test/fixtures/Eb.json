@@ -1,0 +1,37 @@
+{
+  "chord": {
+    "root": "E",
+    "accidental": "b"
+  },
+  "strings": [
+    {
+      "kind": "mutedOpen"
+    },
+    {
+      "kind": "fretted",
+      "fret": 6,
+      "finger": 4
+    },
+    {
+      "kind": "fretted",
+      "fret": 5,
+      "finger": 3
+    },
+    {
+      "kind": "fretted",
+      "fret": 3,
+      "finger": 1
+    },
+    {
+      "kind": "mutedOpen"
+    },
+    {
+      "kind": "mutedOpen"
+    }
+  ],
+  "windowStartFret": 3,
+  "fretLabelRow": 3,
+  "review": [
+    "open-string \"x\" marks were one padded text; snapped to strings 0,4,5 (largest offset 0.42 R)"
+  ]
+}

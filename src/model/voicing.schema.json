@@ -1,0 +1,88 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://musiciansclub.com/schemas/voicing.json",
+  "title": "Voicing",
+  "description": "One chord diagram as data. See src/model/voicing.ts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["chord", "strings", "windowStartFret"],
+  "properties": {
+    "chord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root"],
+      "properties": {
+        "root": { "type": "string", "pattern": "^[A-G]$" },
+        "accidental": { "enum": ["b", "#"] },
+        "quality": { "type": "string", "minLength": 1 },
+        "bass": { "type": "string", "pattern": "^[A-G][b#]?$" }
+      }
+    },
+    "strings": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "fret"],
+            "properties": {
+              "kind": { "const": "fretted" },
+              "fret": { "type": "integer", "minimum": 1, "maximum": 24 },
+              "finger": { "enum": [1, 2, 3, 4, "T"] }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "fret"],
+            "properties": {
+              "kind": { "const": "muted" },
+              "fret": { "type": "integer", "minimum": 1, "maximum": 24 }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind"],
+            "properties": { "kind": { "const": "open" } }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind"],
+            "properties": { "kind": { "const": "mutedOpen" } }
+          }
+        ]
+      }
+    },
+    "windowStartFret": { "type": "integer", "minimum": 1, "maximum": 21 },
+    "fretLabelRow": { "type": "integer", "minimum": 0, "maximum": 3 },
+    "barres": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["fret", "from", "to", "sounding"],
+        "properties": {
+          "fret": { "type": "integer", "minimum": 1, "maximum": 24 },
+          "from": { "type": "integer", "minimum": 0, "maximum": 5 },
+          "to": { "type": "integer", "minimum": 0, "maximum": 5 },
+          "sounding": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": { "type": "integer", "minimum": 0, "maximum": 5 }
+            }
+          }
+        }
+      }
+    },
+    "note": { "type": "string" },
+    "review": { "type": "array", "items": { "type": "string" } }
+  }
+}

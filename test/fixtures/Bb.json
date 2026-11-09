@@ -1,0 +1,45 @@
+{
+  "chord": {
+    "root": "B",
+    "accidental": "b"
+  },
+  "strings": [
+    {
+      "kind": "muted",
+      "fret": 6
+    },
+    {
+      "kind": "muted",
+      "fret": 8
+    },
+    {
+      "kind": "fretted",
+      "fret": 8,
+      "finger": 4
+    },
+    {
+      "kind": "fretted",
+      "fret": 7,
+      "finger": 2
+    },
+    {
+      "kind": "fretted",
+      "fret": 6,
+      "finger": 1
+    },
+    {
+      "kind": "muted",
+      "fret": 6
+    }
+  ],
+  "windowStartFret": 5,
+  "fretLabelRow": 1,
+  "barres": [
+    {
+      "fret": 6,
+      "from": 0,
+      "to": 5,
+      "sounding": []
+    }
+  ]
+}

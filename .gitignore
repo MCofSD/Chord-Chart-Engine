@@ -1,0 +1,13 @@
+node_modules/
+test/output/
+preview/
+
+# Copyrighted song charts and lyric excerpts: keep local only (the repo is public)
+samples/*.pdf
+samples/A Dios Le Pido*.docx
+samples/All I Wanted*.docx
+samples/American Boy*.docx
+samples/Awitin Mo*.docx
+samples/Since U Been Gone*.docx
+samples/So Easy*.docx
+test/fixtures/charts/subg-chorus.json

@@ -1,0 +1,537 @@
+{
+  "_note": "Made-up song for the preview and tests. Exercises every chord-line item the renderer supports, on/before/after timing, two riff colors, and Repeat references.",
+  "meta": {
+    "title": "River Road",
+    "artist": "Test Band",
+    "year": 2026,
+    "key": "Eb",
+    "bpm": 96,
+    "date": "2026-11-08"
+  },
+  "sections": [
+    {
+      "type": "intro",
+      "label": "Intro",
+      "blocks": [
+        {
+          "kind": "snippet",
+          "src": "demo-snippet.png",
+          "width": 450,
+          "height": 52,
+          "overlay": [
+            {
+              "x": 40,
+              "items": [
+                {
+                  "t": "instrument",
+                  "op": "only",
+                  "text": "RGtr"
+                }
+              ]
+            },
+            {
+              "x": 330,
+              "items": [
+                {
+                  "t": "instrument",
+                  "op": "add",
+                  "text": "Drm"
+                }
+              ]
+            },
+            {
+              "x": 0,
+              "alignRight": true,
+              "items": [
+                {
+                  "t": "direction",
+                  "text": "simile"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "verse",
+      "label": "1st Ver",
+      "blocks": [
+        {
+          "kind": "line",
+          "lyrics": [
+            {
+              "text": "Walking down the river road tonight"
+            }
+          ],
+          "above": [
+            {
+              "at": 0,
+              "items": [
+                {
+                  "t": "bar"
+                },
+                {
+                  "t": "chord",
+                  "chord": {
+                    "root": "E",
+                    "accidental": "b",
+                    "quality": "Maj7"
+                  }
+                },
+                {
+                  "t": "ref",
+                  "n": 1
+                }
+              ]
+            },
+            {
+              "at": 15,
+              "items": [
+                {
+                  "t": "bar"
+                },
+                {
+                  "t": "same"
+                }
+              ]
+            },
+            {
+              "at": 21,
+              "items": [
+                {
+                  "t": "chord",
+                  "chord": {
+                    "root": "C",
+                    "quality": "m7"
+                  },
+                  "beats": "4&"
+                }
+              ]
+            },
+            {
+              "at": 0,
+              "alignRight": true,
+              "items": [
+                {
+                  "t": "direction",
+                  "text": "simile"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "line",
+          "lyrics": [
+            {
+              "text": "Lanterns on the water "
+            },
+            {
+              "text": "(shine on)",
+              "style": "aside"
+            },
+            {
+              "text": " burning bright"
+            }
+          ],
+          "above": [
+            {
+              "at": 0,
+              "items": [
+                {
+                  "t": "bar"
+                },
+                {
+                  "t": "chord",
+                  "chord": {
+                    "root": "A",
+                    "accidental": "b"
+                  }
+                },
+                {
+                  "t": "instrument",
+                  "op": "add",
+                  "text": "Bss"
+                }
+              ]
+            },
+            {
+              "at": 22,
+              "items": [
+                {
+                  "t": "bar"
+                },
+                {
+                  "t": "chord",
+                  "chord": {
+                    "root": "B",
+                    "accidental": "b",
+                    "quality": "7sus4"
+                  }
+                }
+              ]
+            },
+            {
+              "at": 39,
+              "items": [
+                {
+                  "t": "chord",
+                  "chord": {
+                    "root": "B",
+                    "accidental": "b",
+                    "quality": "7(b9)"
+                  },
+                  "beats": "2&"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "line",
+          "lyrics": [
+            {
+              "text": "Every mile is ringing in my ears",
+              "style": "backup"
+            }
+          ],
+          "above": [
+            {
+              "at": 0,
+              "items": [
+                {
+                  "t": "bar"
+                },
+                {
+                  "t": "chord",
+                  "chord": {
+                    "root": "F",
+                    "quality": "m7"
+                  },
+                  "noBass": true,
+                  "paren": true
+                }
+              ]
+            },
+            {
+              "at": 11,
+              "items": [
+                {
+                  "t": "bar"
+                },
+                {
+                  "t": "chord",
+                  "chord": {
+                    "root": "G",
+                    "quality": "m7(b5b9)"
+                  }
+                }
+              ]
+            },
+            {
+              "at": 24,
+              "items": [
+                {
+                  "t": "stop",
+                  "kind": "abrupt",
+                  "beats": "4",
+                  "beatsFirst": true
+                },
+                {
+                  "t": "bar"
+                },
+                {
+                  "t": "direction",
+                  "text": "NC"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "chorus",
+      "label": "Chorus",
+      "blocks": [
+        {
+          "kind": "line",
+          "lyrics": [
+            {
+              "text": "Carry me home "
+            },
+            {
+              "item": {
+                "t": "endingOpen",
+                "n": "2"
+              }
+            },
+            {
+              "text": " carry me"
+            },
+            {
+              "item": {
+                "t": "endingClose"
+              }
+            },
+            {
+              "text": " over the hill"
+            }
+          ],
+          "above": [
+            {
+              "at": 0,
+              "items": [
+                {
+                  "t": "bar"
+                },
+                {
+                  "t": "chord",
+                  "chord": {
+                    "root": "A",
+                    "accidental": "b",
+                    "bass": "Eb"
+                  }
+                },
+                {
+                  "t": "instrument",
+                  "op": "except",
+                  "text": "Snr"
+                }
+              ]
+            },
+            {
+              "at": 15,
+              "items": [
+                {
+                  "t": "bar"
+                },
+                {
+                  "t": "chord",
+                  "chord": {
+                    "root": "F",
+                    "accidental": "#",
+                    "quality": "m"
+                  }
+                }
+              ]
+            },
+            {
+              "at": 29,
+              "items": [
+                {
+                  "t": "bar"
+                },
+                {
+                  "t": "chord",
+                  "chord": {
+                    "root": "B",
+                    "accidental": "b",
+                    "quality": "m7",
+                    "bass": "C"
+                  }
+                },
+                {
+                  "t": "endingOpen",
+                  "n": "1"
+                },
+                {
+                  "t": "stop",
+                  "kind": "hold"
+                },
+                {
+                  "t": "endingClose"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "line",
+          "lyrics": [
+            {
+              "text": "Carry me home and I'll be still"
+            }
+          ],
+          "above": [
+            {
+              "at": 0,
+              "items": [
+                {
+                  "t": "meter",
+                  "top": 2,
+                  "bottom": 4
+                },
+                {
+                  "t": "bar"
+                },
+                {
+                  "t": "chord",
+                  "chord": {
+                    "root": "G",
+                    "quality": "7(b9)",
+                    "bass": "F"
+                  }
+                },
+                {
+                  "t": "ref",
+                  "n": 2,
+                  "riff": 2
+                },
+                {
+                  "t": "arrowDown"
+                }
+              ]
+            },
+            {
+              "at": 15,
+              "items": [
+                {
+                  "t": "chord",
+                  "chord": {
+                    "root": "C",
+                    "accidental": "#",
+                    "quality": "7(#9)"
+                  }
+                }
+              ]
+            },
+            {
+              "at": 25,
+              "items": [
+                {
+                  "t": "chord",
+                  "chord": {
+                    "root": "E",
+                    "accidental": "b"
+                  }
+                },
+                {
+                  "t": "stop",
+                  "kind": "hold"
+                },
+                {
+                  "t": "instrument",
+                  "op": "remove",
+                  "text": "Drm"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "other",
+      "label": "",
+      "blocks": [
+        {
+          "kind": "note",
+          "pieces": [
+            {
+              "text": "Repeat "
+            },
+            {
+              "section": "chorus",
+              "text": "Chorus"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "refrain",
+      "label": "Ref 1",
+      "blocks": [
+        {
+          "kind": "line",
+          "lyrics": [
+            {
+              "text": "Slow it down and let it ring"
+            }
+          ],
+          "above": [
+            {
+              "at": 0,
+              "items": [
+                {
+                  "t": "bar"
+                },
+                {
+                  "t": "chord",
+                  "chord": {
+                    "root": "D",
+                    "quality": "sus"
+                  }
+                },
+                {
+                  "t": "direction",
+                  "text": "ritard"
+                }
+              ]
+            },
+            {
+              "at": 13,
+              "place": "after",
+              "items": [
+                {
+                  "t": "chord",
+                  "chord": {
+                    "root": "G"
+                  }
+                }
+              ]
+            },
+            {
+              "at": 24,
+              "place": "before",
+              "items": [
+                {
+                  "t": "chord",
+                  "chord": {
+                    "root": "A"
+                  }
+                }
+              ]
+            },
+            {
+              "at": 28,
+              "items": [
+                {
+                  "t": "chord",
+                  "chord": {
+                    "root": "D"
+                  }
+                },
+                {
+                  "t": "times",
+                  "text": "2x"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "other",
+      "label": "",
+      "blocks": [
+        {
+          "kind": "note",
+          "pieces": [
+            {
+              "text": "Repeat "
+            },
+            {
+              "section": "verse",
+              "label": "1st Ver",
+              "text": "1st Verse"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
