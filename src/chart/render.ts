@@ -5,9 +5,10 @@
  * always produces the same SVG, with no DOM or browser (CLAUDE.md §6.5, §7).
  * Headless Chromium can print the pages to PDF later.
  */
-import { resolveRepeats, type Block, type Chart, type NoteBlock, type SectionRef } from "../model/chart.js";
+import { resolveRepeats, type Block, type Chart, type Meter, type NoteBlock, type SectionRef, type SnippetBlock } from "../model/chart.js";
 import { itemRuns } from "./items.js";
-import { layoutLine, type LaidLine } from "./line.js";
+import { fitLine, type LaidLine } from "./line.js";
+import { DEFAULT_METER, lineTiming } from "./timing.js";
 import { esc, fmt, runsToSvg, runsWidth, type Run } from "./runs.js";
 import { CHART } from "./tokens.js";
 import { textWidth } from "../text/metrics.js";
@@ -61,14 +62,33 @@ function sectionStyle(index: number, colors: RepeatColors): { fill: string; bold
   return fill ? { fill, bold: true } : { fill: P.colors.ink, bold: false };
 }
 
-interface LaidBlock { block: Block; height: number; line?: LaidLine }
+/** A laid block; a line that wrapped has several rows, each a chord row and a lyric row. */
+interface LaidBlock { block: Block; height: number; rows?: LaidLine[] }
 
-function layoutBlock(block: Block): LaidBlock {
-  if (block.kind === "snippet") return { block, height: block.height };
-  if (block.kind === "note") return { block, height: P.row.height };
-  const line = layoutLine(block);
-  const rows = (line.chords.length ? 1 : 0) + (line.lyrics.length ? 1 : 0);
-  return { block, height: Math.max(rows, 1) * P.row.height, line };
+const rowCount = (line: LaidLine) => Math.max((line.chords.length ? 1 : 0) + (line.lyrics.length ? 1 : 0), 1);
+
+/** Time axis of a snippet's image (time in beats -> x), if it declares one. */
+function snippetAxis(snippet: SnippetBlock, meter: Meter): ((t: number) => number) | undefined {
+  const bars = snippet.timeline?.bars;
+  if (!bars?.length) return undefined;
+  return (t) => {
+    const k = Math.min(Math.max(Math.floor(t / meter.top), 0), bars.length - 1);
+    const bar = bars[k]!;
+    return P.content.left + bar.x + (t - k * meter.top) * (bar.width / meter.top);
+  };
+}
+
+/** Lays out a section's blocks; `meter` carries inline meter changes from line to line. */
+function layoutBlocks(blocks: Block[], meter: { current: Meter }): LaidBlock[] {
+  return blocks.map((block, i) => {
+    if (block.kind === "snippet") return { block, height: block.height };
+    if (block.kind === "note") return { block, height: P.row.height };
+    const prev = blocks[i - 1];
+    const axis = prev?.kind === "snippet" ? snippetAxis(prev, meter.current) : undefined;
+    const rows = fitLine(block, axis ? { meter: meter.current, axis } : { meter: meter.current });
+    meter.current = lineTiming(block, meter.current).endMeter;
+    return { block, height: rows.reduce((h, r) => h + rowCount(r), 0) * P.row.height, rows };
+  });
 }
 
 function sectionHeight(blocks: LaidBlock[]): number {
@@ -104,16 +124,20 @@ function blockSvg(b: LaidBlock, top: number, colors: RepeatColors): string {
   }
   if (block.kind === "note") return runsToSvg(noteRuns(block, colors), P.section.labelX, top + P.row.baseline).svg;
 
-  const line = b.line!;
   let y = top;
-  let svg = "";
-  if (line.chords.length) { svg += placedSvg(line.chords, y + P.row.baseline); y += P.row.height; }
-  if (line.lyrics.length) svg += placedSvg(line.lyrics, y + P.row.baseline);
-  if (line.scaleX < 1) {
-    const l = P.content.left;
-    svg = `<g transform="translate(${fmt(l)} 0) scale(${line.scaleX.toFixed(4)} 1) translate(${fmt(-l)} 0)">${svg}</g>`;
+  let out = "";
+  for (const line of b.rows!) {
+    let svg = "";
+    if (line.chords.length) { svg += placedSvg(line.chords, y + P.row.baseline); y += P.row.height; }
+    if (line.lyrics.length) { svg += placedSvg(line.lyrics, y + P.row.baseline); y += P.row.height; }
+    if (!line.chords.length && !line.lyrics.length) y += P.row.height;
+    if (line.scaleX < 1) {
+      const l = P.content.left;
+      svg = `<g transform="translate(${fmt(l)} 0) scale(${line.scaleX.toFixed(4)} 1) translate(${fmt(-l)} 0)">${svg}</g>`;
+    }
+    out += svg;
   }
-  return svg;
+  return out;
 }
 
 function headerSvg(chart: Chart): string {
@@ -150,9 +174,10 @@ export function renderChart(chart: Chart, options: RenderChartOptions = {}): Ren
     y = P.rule.firstY;
   };
 
+  const meter = { current: chart.meta.meter ?? DEFAULT_METER };
   for (const [index, section] of chart.sections.entries()) {
-    let blocks = section.blocks.map(layoutBlock);
-    for (const b of blocks) for (const w of b.line?.warnings ?? []) warnings.push(`${section.label || section.type}: ${w}`);
+    let blocks = layoutBlocks(section.blocks, meter);
+    for (const b of blocks) for (const r of b.rows ?? []) for (const w of r.warnings) warnings.push(`${section.label || section.type}: ${w}`);
 
     // Move the whole section to a new page if it doesn't fit; split it only if it is taller than a page.
     if (y + sectionHeight(blocks) > bottom && y > P.rule.firstY) newPage();
@@ -185,6 +210,7 @@ export function renderChart(chart: Chart, options: RenderChartOptions = {}): Ren
   }
 
   const total = pages.length;
+  if (total > P.page.targetPages) warnings.push(`chart is ${total} pages; the aim is ${P.page.targetPages} or fewer`);
   return {
     warnings,
     pages: pages.map((body, i) => {

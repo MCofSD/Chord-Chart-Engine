@@ -23,7 +23,11 @@ export interface ChartMeta {
   bpm?: number;
   /** ISO date printed top left (last-saved vs revision date is open question §10.5). */
   date?: string;
+  /** Time signature. Default 4/4; inline `meter` items change it from their bar on. */
+  meter?: Meter;
 }
+
+export interface Meter { top: number; bottom: number }
 
 export interface Section {
   type: SectionType;
@@ -40,6 +44,36 @@ export interface LineBlock {
   lyrics: LyricPiece[];
   /** Chord-line groups, each pinned to a character of the concatenated lyric text. */
   above: Anchor[];
+  /**
+   * Beat of the line's first bar on which the lyric enters, in beat-tag
+   * syntax ("2", "1&", "2e", "3"...). Omitted: the lyric starts with the bar.
+   * Groups anchored at character 0 stay on beat 1 at the left edge and the
+   * lyric starts later, so the gap shows the reader the lyric comes in after
+   * the downbeat chord (owner, 2026-11-09).
+   */
+  lyricEntry?: string;
+  /**
+   * Optional lyric timing marks (owner, 2026-11-09: sparse, only where the
+   * natural spacing would mislead). Each pins lyric character `at` to a beat
+   * of bar `bar` (1-based within the line, default 1), so the layout spaces
+   * the syllable at its place in time.
+   */
+  rhythm?: RhythmMark[];
+}
+
+export interface RhythmMark { at: number; beat: string; bar?: number }
+
+const SUBDIVISIONS: Record<string, number> = { "": 0, e: 1 / 4, "&": 1 / 2, a: 3 / 4, te: 1 / 3, ta: 2 / 3 };
+
+/**
+ * Position of a single beat tag as beats after beat 1: "1" = 0, "1&" = 0.5,
+ * "2" = 1, "2a" = 1.75, "3te" = 2.33. Returns undefined for anything else
+ * (lists, bare subdivisions, malformed tags).
+ */
+export function beatOffset(tag: string): number | undefined {
+  const m = /^([1-9]\d?)(e|&|a|te|ta)?$/.exec(tag.trim());
+  if (!m) return undefined;
+  return Number(m[1]) - 1 + SUBDIVISIONS[m[2] ?? ""]!;
 }
 
 export type LyricPiece =
@@ -108,6 +142,13 @@ export interface SnippetBlock {
   height: number;
   /** Text printed over the top band of the image, e.g. "(⊕RGtr)" or "(simile)". */
   overlay?: { x: number; items: ChordLineItem[]; alignRight?: boolean }[];
+  /**
+   * Where the image's bars sit: for each bar, x of beat 1 (pt from the content
+   * edge) and the bar's width (beat 1 to the next bar's beat 1). The line
+   * directly under the snippet spaces its timed syllables on this axis, so
+   * they line up under the notes.
+   */
+  timeline?: { bars: { x: number; width: number }[] };
 }
 
 /**

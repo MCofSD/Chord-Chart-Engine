@@ -13,6 +13,8 @@ export const CHART = {
      * 768.6 and its rule just below; the footer baseline is 789.1. (verify)
      */
     bottomLimit: 779,
+    /** Charts aim to fit this many pages (owner); more prints a warning. */
+    targetPages: 2,
   },
 
   colors: {
@@ -94,6 +96,18 @@ export const CHART = {
   },
 
   chord: {
+    /**
+     * Weight of a chord's extension (everything after root, flat/sharp and
+     * minor "m"), taken as one unit at its own middle, relative to one core
+     * symbol. Used to find the chord's beat point. The owner (2026-11-09) said
+     * extensions count for less but was unsure how much. (verify)
+     */
+    extensionWeight: 0.5,
+    /**
+     * Weight of a slash bass ("/F#") as one unit at its own middle. Owner
+     * (2026-11-09): less than an extension, but not nothing. (verify)
+     */
+    bassWeight: 0.25,
     rootSize: 16,
     /** Flat/sharp after the root: 12 pt in the files ("B" 16 + "b" 12). */
     accidentalSize: 12,
@@ -161,6 +175,18 @@ export const CHART = {
      */
     timingNear: 2,
     timingFar: 12,
+    /**
+     * Rhythm spacing: points per beat for timed chords and syllables (owner,
+     * 2026-11-09). A point at time t sits at content left + t x beatWidth, or
+     * further right when text would collide. Measured: lyric entries at about
+     * 26 pt (beat 2), 50.4 pt (beat 3), 79 pt (beat 4), 11.6-16 pt (beat 1&) in
+     * Since U Been Gone, 21.6 / 43.2 pt in American Boy and So Easy; full
+     * chord lines run 25-28 pt per beat. Lines that don't fit flex this down
+     * first (see fitLine). (verify)
+     */
+    beatWidth: 25.2,
+    /** Space on each side of the hyphen in a word split by a gap ("start - ed"). */
+    hyphenPad: 1,
   },
 
   /** Arial Narrow is about 82% of Arial's width (measured 0.81-0.82). Used to fit long lines. */

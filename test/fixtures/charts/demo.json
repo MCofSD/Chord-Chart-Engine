@@ -405,7 +405,8 @@
                   "chord": {
                     "root": "E",
                     "accidental": "b"
-                  }
+                  },
+                  "beats": "2&"
                 },
                 {
                   "t": "stop",
@@ -456,6 +457,11 @@
               "at": 0,
               "items": [
                 {
+                  "t": "meter",
+                  "top": 4,
+                  "bottom": 4
+                },
+                {
                   "t": "bar"
                 },
                 {
@@ -491,7 +497,8 @@
                   "t": "chord",
                   "chord": {
                     "root": "A"
-                  }
+                  },
+                  "beats": "4"
                 }
               ]
             },
@@ -502,7 +509,8 @@
                   "t": "chord",
                   "chord": {
                     "root": "D"
-                  }
+                  },
+                  "beats": "4&"
                 },
                 {
                   "t": "times",

@@ -17,6 +17,7 @@ We are building one application that replaces this workflow. Requirements:
 - Store charts as **structured data** and render PDF/screen output from it. Separate content from layout.
 - Later features: transposition, library and search (genre, mood, skill level, year), versions, contributor review workflow, performance view, and a web/tablet view that copies repeated sections in place instead of pointing back to them.
 - Chord timing relative to the lyric is shown through spacing: a chord can sit right on a syllable, or just before or after it (owner, 2026-11-08). The data model must keep this distinction.
+- Spacing conveys rhythm as accurately as possible, chords conform around the lyrics, charts aim for 2 pages, and they must stay readable at arm's length on Letter paper (owner, 2026-11-09). When a line doesn't fit: rhythm spacing flexes first, then the line narrows to 82%, font sizes never shrink, and finally it wraps at bar lines with an equal number of bars per row (never 3 + 1). A bar's second untagged chord is on beat 3; with more than two chords, only the beat-1 and beat-3 chords may go untagged. Details in NOTES.md.
 
 The website is WordPress/Elementor with a membership plugin. Charts are member-gated. Decision pending: publish from this tool into WordPress, or replace parts of it. Default assumption: publish into WordPress (lower risk).
 

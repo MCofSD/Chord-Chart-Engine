@@ -2,7 +2,7 @@
 import { CIRCLED_PLUS, CIRCLED_TIMES, FLAT, NEG_CIRCLED, SHARP } from "../text/glyphs.js";
 import type { ChordLineItem } from "../model/chart.js";
 import type { ChordName } from "../model/voicing.js";
-import { runsWidth, type Run } from "./runs.js";
+import { runsWidth, runWidth, type Run } from "./runs.js";
 import { CHART } from "./tokens.js";
 
 const C = CHART.colors;
@@ -54,6 +54,52 @@ export function chordRuns(chord: ChordName, opts: { beats?: string; noBass?: boo
   if (opts.beats) runs.push(...beatRuns(opts.beats));
   if (opts.paren) runs.push({ kind: "text", text: ")", size: K.rootSize, face: "arial", fill });
   return runs;
+}
+
+/**
+ * Where a chord's beat sits, as an offset from the start of its runs: the
+ * weighted middle of the name (owner, 2026-11-09). The root letter, its
+ * flat/sharp and a minor "m" are the core and weigh 1 each, so C# centers
+ * between C and #. The rest of the quality (the extension) counts as one
+ * unit weighing CHART.chord.extensionWeight, at its own middle, so C#m7(#11)
+ * centers a little right of C#m however long the extension is. A slash bass
+ * is another unit, lighter still (CHART.chord.bassWeight). Parentheses around the chord and beat tags weigh nothing.
+ */
+export function chordBeatPoint(chord: ChordName, opts: { beats?: string; noBass?: boolean; paren?: boolean } = {}): number {
+  const runs = chordRuns(chord, opts);
+  const quality = chord.quality ?? "";
+  const minor = /^m(?!aj)/.test(quality);
+  // Role of each symbol in run order (one per character or glyph).
+  type Role = "none" | "core" | "ext" | "bass";
+  const roles: Role[] = [];
+  if (opts.paren) roles.push("none");
+  roles.push("core");
+  if (chord.accidental) roles.push("core");
+  for (let i = 0; i < quality.length; i++) roles.push(i === 0 && minor ? "core" : "ext");
+  if (chord.bass) for (let i = 0; i < 1 + chord.bass.length; i++) roles.push("bass");
+
+  let x = 0, k = 0, sum = 0, total = 0;
+  const span: Record<"ext" | "bass", [number, number] | undefined> = { ext: undefined, bass: undefined };
+  for (const r of runs) {
+    if (r.kind === "space") { x += r.width; continue; }
+    const symbols = r.kind === "text" ? [...r.text] : [null];
+    for (const ch of symbols) {
+      const w = ch === null ? runWidth(r) : runWidth({ ...(r as Extract<Run, { kind: "text" }>), text: ch });
+      const role = roles[k] ?? "none";
+      if (role === "core") { sum += x + w / 2; total += 1; }
+      else if (role === "ext" || role === "bass") {
+        const sp = span[role];
+        span[role] = sp ? [sp[0], x + w] : [x, x + w];
+      }
+      x += w; k++;
+    }
+  }
+  for (const [sp, weight] of [[span.ext, K.extensionWeight], [span.bass, K.bassWeight]] as const) {
+    if (!sp) continue;
+    sum += weight * (sp[0] + sp[1]) / 2;
+    total += weight;
+  }
+  return total ? sum / total : 0;
 }
 
 /**
@@ -132,17 +178,33 @@ export function gapBetween(a: ChordLineItem, b: ChordLineItem): number {
  * Runs for a group of items, plus `hang`: the width of everything before the
  * group's first chord (e.g. a leading "|"), which is drawn left of the
  * anchored character so the chord itself sits over the syllable. A group
- * without a chord does not hang.
+ * without a chord does not hang. `beatPoint` is where the group's beat sits:
+ * the first chord's weighted middle, else the "-" of "| -" or a timed stop's
+ * "//" middle; undefined for groups with none (they align by their left edge).
  */
-export function groupRuns(items: ChordLineItem[]): { runs: Run[]; hang: number } {
+export function groupRuns(items: ChordLineItem[]): { runs: Run[]; hang: number; beatPoint: number | undefined } {
   const runs: Run[] = [];
-  let hang: number | undefined;
+  let hang: number | undefined, beatPoint: number | undefined;
   items.forEach((item, i) => {
     const prev = items[i - 1];
     const gap = prev ? gapBetween(prev, item) : 0;
     if (gap) runs.push({ kind: "space", width: gap });
-    if (item.t === "chord" && hang === undefined) hang = runsWidth(runs);
+    const before = runsWidth(runs);
+    if (item.t === "chord" && hang === undefined) hang = before;
+    if (beatPoint === undefined) {
+      if (item.t === "chord") {
+        const opts: { beats?: string; noBass?: boolean; paren?: boolean } = {};
+        if (item.beats !== undefined) opts.beats = item.beats;
+        if (item.noBass !== undefined) opts.noBass = item.noBass;
+        if (item.paren !== undefined) opts.paren = item.paren;
+        beatPoint = before + chordBeatPoint(item.chord, opts);
+      } else if (item.t === "same") beatPoint = before + runsWidth(itemRuns(item)) / 2;
+      else if (item.t === "stop" && item.beats !== undefined) {
+        const slashAt = item.beatsFirst ? before + runsWidth(beatRuns(item.beats)) : before;
+        beatPoint = slashAt + runsWidth(itemRuns({ t: "stop", kind: item.kind })) / 2;
+      }
+    }
     runs.push(...itemRuns(item));
   });
-  return { runs, hang: hang ?? 0 };
+  return { runs, hang: hang ?? 0, beatPoint };
 }

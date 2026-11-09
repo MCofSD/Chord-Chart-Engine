@@ -11,3 +11,6 @@ samples/Awitin Mo*.docx
 samples/Since U Been Gone*.docx
 samples/So Easy*.docx
 test/fixtures/charts/subg-chorus.json
+
+# Local working charts (copyrighted lyrics): never commit
+local/
