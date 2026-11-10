@@ -1,11 +1,13 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { Chart, LineBlock } from "../src/model/chart.js";
 import { canonicalChart, parseChartText, writeChartText } from "../src/text-format/index.js";
 import { stableJson } from "../src/text-format/canonical.js";
 import { parseGroup } from "../src/text-format/tokens.js";
 import { renderChart } from "../src/chart/render.js";
+import { renderCover } from "../src/cover/render.js";
+import { notationFrom } from "../scripts/lib/output.js";
 
 const HEAD = "Title: Test\nKey: G\n";
 const parse = (body: string) => parseChartText(HEAD + body);
@@ -123,16 +125,49 @@ describe("round trip", () => {
     });
   }
 
+  it("keeps an unnamed section whose first note is written as JSON", () => {
+    // As the importer makes for "Repeat ... (⊕last two bars)" (an odd piece the note syntax can't express).
+    const line: LineBlock = { kind: "line", lyrics: [{ text: "la la" }], above: [{ at: 0, items: [{ t: "chord", chord: { root: "G" } }] }] };
+    roundTrips({
+      meta: { title: "T", artist: "A", key: "G" },
+      sections: [
+        { type: "chorus", label: "Chorus", blocks: [line] },
+        { type: "other", label: "", blocks: [{ kind: "note", pieces: [{ text: "Repeat " }, { section: "chorus", text: "Chorus" }, { text: "( " }, { section: "other", text: "⊕" }, { text: "last bar) " }] }] },
+        { type: "ending", label: "End", blocks: [line] },
+      ],
+    });
+  });
+
   it("renders the parsed demo exactly like the JSON", () => {
     const chart = JSON.parse(readFileSync("test/fixtures/charts/demo.json", "utf8")) as Chart;
     const back = parseChartText(writeChartText(chart)).chart;
     expect(renderChart(back).pages).toEqual(renderChart(chart).pages);
   });
 
-  // Imported real charts: local only (copyrighted lyrics, gitignored).
+});
+
+/**
+ * Real charts: JSON -> editor text -> JSON, as when a PDF import is opened
+ * and saved in the editor. Local only (copyrighted lyrics, gitignored), so
+ * each test is skipped when its file is missing.
+ */
+describe("round trip of local charts (import -> editor -> JSON)", () => {
   const dir = "local/imports";
-  const local = existsSync(dir) ? readdirSync(dir).map((d) => join(dir, d, `${d}.json`)).filter(existsSync) : [];
-  it.skipIf(local.length === 0)("writes and reads back the local imported charts", () => {
-    for (const f of local) roundTrips(JSON.parse(readFileSync(f, "utf8")) as Chart);
-  });
+  const imports = existsSync(dir) ? readdirSync(dir).map((d) => join(dir, d, `${d}.json`)).filter(existsSync) : [];
+  const files = [...imports, "local/since-u-been-gone/since-u-been-gone.json"].filter(existsSync);
+  it.skipIf(files.length > 0)("skipped: no local charts on this machine", () => {});
+
+  for (const file of files) {
+    it(`keeps ${file} unchanged`, () => {
+      const chart = JSON.parse(readFileSync(file, "utf8")) as Chart;
+      const text = roundTrips(chart);
+      const back = parseChartText(text).chart;
+      // Writing the parsed chart again gives the same text.
+      expect(writeChartText(back)).toBe(text);
+      // Chart and cover pages are identical, notation images included.
+      const draw = notationFrom(dirname(file));
+      expect(renderChart(back, { notation: draw }).pages).toEqual(renderChart(chart, { notation: draw }).pages);
+      expect(renderCover(back).pages).toEqual(renderCover(chart).pages);
+    });
+  }
 });

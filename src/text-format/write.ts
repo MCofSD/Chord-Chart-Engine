@@ -210,7 +210,10 @@ export function writeChartText(chart: Chart): string {
   chart.sections.forEach((s, si) => {
     const before = chart.sections.slice(0, si);
     out.push("");
-    const startsWithNote = s.blocks[0]?.kind === "note";
+    // An unnamed section that starts with a "Repeat ..." line needs no heading: that line
+    // starts a new section by itself. A note written as a JSON block does not, so it gets "#".
+    const first = s.blocks[0];
+    const startsWithNote = first?.kind === "note" && !blockLines(first, before)[0]?.startsWith("```");
     if (s.label || !startsWithNote || s.type !== "other") {
       const inferred = s.label ? sectionTypeOf(s.label) : "other";
       out.push(`#${s.label ? " " + s.label : ""}${inferred !== s.type ? ` =${s.type}` : ""}`);
