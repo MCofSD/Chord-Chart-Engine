@@ -16,7 +16,7 @@ Musicians' Club publishes about 400 "gig-ready" chord charts as PDFs. Today each
 | Importer for existing charts and covers | Chart PDFs: working, with a review step ([how to use it](#importing-a-chart-pdf)). Covers: not started |
 | Library, search, contributor review workflow | Not started |
 
-Measurements, decisions, and known differences from the originals are recorded in [NOTES.md](NOTES.md). The full project brief is [CLAUDE.md](CLAUDE.md).
+Measurements, decisions, and known differences from the originals are recorded in [NOTES.md](NOTES.md). Everything still waiting on an answer, a file, or a check is in [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md). The full project brief is [CLAUDE.md](CLAUDE.md).
 
 ## Quick look, no install needed
 

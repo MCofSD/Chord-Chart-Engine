@@ -237,6 +237,8 @@ Point sizes at 100% (1 R = 18.665 pt): root 24 pt, root flat/sharp 20 pt, qualit
 
 ## 10. Open questions (do not guess; ask the owner)
 
+All open items, including bugs and values to verify, are listed in **OPEN-QUESTIONS.md**. Add new ones there and remove them when answered.
+
 1. ~~Are the white row-center hairlines and white circle in `Eb/Bb/Ab.svg` intentional?~~ Answered 2026-11-08: snap helpers, not needed. Also decided: diagrams keep 0.2 R headroom above the name; open strings are drawn as nothing.
 2. What does the divider between the first row and the rest on covers mean (primary vs alternate chords)?
 3. Overflow rule beyond 56 + 20 diagrams?

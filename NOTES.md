@@ -1,5 +1,7 @@
 # Diagram generator: notes
 
+Open items (bugs, questions, values to verify) are collected in [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md); the "Open questions" sections below are kept for context.
+
 Status of CLAUDE.md §6 as of 2026-11-08. Run everything with `npm test`; build the preview with `npm run preview` and open `preview/index.html`.
 
 ## What was measured
