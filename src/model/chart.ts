@@ -3,7 +3,7 @@
  * styling live in src/chart; nothing here knows about positions or fonts,
  * except that chord-line items are pinned to characters of the lyric.
  */
-import type { ChordName } from "./voicing.js";
+import { chordLabel, type ChordName, type Voicing } from "./voicing.js";
 
 export type SectionType =
   | "intro" | "verse" | "prechorus" | "refrain" | "chorus" | "bridge"
@@ -12,6 +12,33 @@ export type SectionType =
 export interface Chart {
   meta: ChartMeta;
   sections: Section[];
+  /** Cover page choices (CLAUDE.md §4.3). Omitted: one diagram per chord, in order of first use. */
+  cover?: CoverSpec;
+}
+
+/**
+ * What the cover shows. The layout (columns, scale, pages) is chosen by the
+ * solver in src/cover from the number of diagrams.
+ */
+export interface CoverSpec {
+  /**
+   * Diagrams in order. Omitted: the chart's chords in order of first use
+   * (chartChords), each with the library's default voicing.
+   */
+  diagrams?: CoverDiagram[];
+  /** Label of the alternate group, printed "Alternate (for Acoustic):". Default "for Acoustic". */
+  alternateLabel?: string;
+}
+
+export interface CoverDiagram {
+  /** Chord as written, e.g. "Bbm7/C". */
+  chord: string;
+  /** A voicing id from the shared library (src/voicings), or a custom shape. Default: the library's first voicing for the chord. */
+  voicing?: string | Voicing;
+  /** Note under the diagram, e.g. "for Bridge only". */
+  note?: string;
+  /** "alternate": listed after the main diagrams, under "Alternate (for ...):". */
+  group?: "alternate";
 }
 
 export interface ChartMeta {
@@ -25,6 +52,12 @@ export interface ChartMeta {
   date?: string;
   /** Time signature. Default 4/4; inline `meter` items change it from their bar on. */
   meter?: Meter;
+  /** Language of the lyrics ("en", "es", "tl"...), for sung syllables. Default: rules lyrics.defaultLanguage. */
+  language?: string;
+  /** The song's original key, when the chart is transposed. The cover prints "Original" unless this differs from `key`. */
+  originalKey?: string;
+  /** Tuning label for the cover, e.g. "Eb Standard Tuning". */
+  tuning?: string;
 }
 
 export interface Meter { top: number; bottom: number }
@@ -36,7 +69,7 @@ export interface Section {
   blocks: Block[];
 }
 
-export type Block = LineBlock | SnippetBlock | NoteBlock;
+export type Block = LineBlock | SnippetBlock | NotationBlock | NoteBlock;
 
 /** One chord line over one lyric line. Either part may be empty. */
 export interface LineBlock {
@@ -167,6 +200,30 @@ export interface SnippetBlock {
 }
 
 /**
+ * Native notation (owner, 2026-11-09): a riff or intro stored as MusicXML and
+ * drawn by the program, instead of a PNG with the chord names baked in.
+ * Chord names above it come from `above`, placed on the real beat positions;
+ * a lyric line right after it is spaced on the same beats.
+ */
+export interface NotationBlock {
+  kind: "notation";
+  /** MusicXML file, next to the chart JSON. */
+  src: string;
+  /** Tab, standard notation, or both. Default: rules notation.defaultStaves. */
+  staves?: "tab" | "standard" | "both";
+  /** First and last measure of the file to show (1-based, inclusive). Default: all. */
+  bars?: [number, number];
+  /** Chord names and marks over the notation, each at a bar (1-based within the shown bars) and beat. */
+  above?: NotationAnchor[];
+  /** Small label before the first chord name, e.g. "Lead". */
+  instrument?: string;
+  /** Image to show if the notation can't be drawn (e.g. the original snippet). */
+  fallback?: { src: string; width: number; height: number };
+}
+
+export interface NotationAnchor { bar: number; beat: string; items: ChordLineItem[] }
+
+/**
  * A full-width text line such as "Repeat Chorus". A `section` piece refers
  * back to an earlier section: on paper the reader's eye goes back to it (its
  * label is colored so it is easy to find); a future web/tablet view can copy
@@ -209,4 +266,47 @@ export function resolveRepeats(chart: Chart): { targets: Set<number>; refs: Map<
     }
   });
   return { targets, refs, unresolved };
+}
+
+/**
+ * The chart's chords in order of first use, one per printed name: chord-line
+ * groups, inline lyric items, snippet overlays and notation chord names. A
+ * bass change with no chord ("/E") counts as the chord before it over the new
+ * bass, e.g. "C/E" (verify with the owner).
+ */
+export function chartChords(chart: Chart): ChordName[] {
+  const seen = new Map<string, ChordName>();
+  let current: ChordName | undefined;
+  const visit = (items: ChordLineItem[]) => {
+    for (const item of items) {
+      let chord: ChordName | undefined;
+      if (item.t === "chord") chord = item.chord;
+      else if (item.t === "bass" && current) chord = { ...current, bass: item.bass };
+      if (!chord) continue;
+      if (item.t === "chord") current = chord;
+      const label = chordLabel(chord);
+      if (!seen.has(label)) seen.set(label, chord);
+    }
+  };
+  for (const section of chart.sections) {
+    for (const block of section.blocks) {
+      if (block.kind === "line") {
+        // Lyric items and chord groups, in left-to-right order.
+        const items: { at: number; items: ChordLineItem[] }[] = block.above.map((a) => ({ at: a.at, items: a.items }));
+        let at = 0;
+        for (const piece of block.lyrics) {
+          if ("item" in piece) items.push({ at, items: [piece.item] });
+          else at += piece.text.length;
+        }
+        items.sort((a, b) => a.at - b.at);
+        for (const g of items) visit(g.items);
+      } else if (block.kind === "snippet") {
+        for (const o of [...(block.overlay ?? [])].sort((a, b) => a.x - b.x)) visit(o.items);
+      } else if (block.kind === "notation") {
+        const order = (a: NotationAnchor) => a.bar * 1000 + (beatOffset(a.beat) ?? 0);
+        for (const a of [...(block.above ?? [])].sort((a, b) => order(a) - order(b))) visit(a.items);
+      }
+    }
+  }
+  return [...seen.values()];
 }

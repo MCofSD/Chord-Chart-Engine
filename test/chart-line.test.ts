@@ -34,14 +34,14 @@ describe("layoutLine", () => {
     const at = LYRIC.indexOf("river");
     const above = [{ at, items: [chord("G")] }];
     const laid = layoutLine(line(above));
-    expect(beatX(laid, above, 0)).toBeCloseTo(midOf(laid, at, at + 5), 6);
+    expect(beatX(laid, above, 0)).toBeCloseTo(midOf(laid, at, at + 3), 6); // sung syllable "riv" of riv|er
   });
 
   it("hangs a leading bar line to the left so the chord stays centered over the syllable", () => {
     const at = LYRIC.indexOf("river");
     const above: Anchor[] = [{ at, items: [{ t: "bar" }, chord("G")] }];
     const laid = layoutLine(line(above));
-    expect(beatX(laid, above, 0)).toBeCloseTo(midOf(laid, at, at + 5), 6);
+    expect(beatX(laid, above, 0)).toBeCloseTo(midOf(laid, at, at + 3), 6);
     expect(laid.chords[0]!.x).toBeLessThan(beatX(laid, above, 0) - textWidth("G", CHART.chord.rootSize) / 2);
   });
 
@@ -95,7 +95,7 @@ describe("layoutLine", () => {
     const at = word + 2; // "v"
     const above = [{ at: word - 1, items: [chord("A", { beats: "1&,2,3,4" })] }, { at, items: [chord("E")] }];
     const laid = layoutLine(line(above));
-    expect(beatX(laid, above, 1)).toBeCloseTo(midOf(laid, at, word + 5), 6); // syllable "ver"
+    expect(beatX(laid, above, 1)).toBeCloseTo(midOf(laid, at, word + 3), 6); // from "v" to the sung split before "er"
   });
 
   it("hyphenates when two chords inside one word force a split", () => {
@@ -103,7 +103,7 @@ describe("layoutLine", () => {
     const above = [{ at: word, items: [chord("F", { beats: "1&,2,3,4" })] }, { at: word + 2, items: [chord("G")] }];
     const laid = layoutLine(line(above));
     expect(laid.lyrics.some((p) => p.runs[0]!.kind === "text" && p.runs[0]!.text === "-")).toBe(true);
-    expect(beatX(laid, above, 1)).toBeCloseTo(midOf(laid, word + 2, word + 7), 6); // "lking"
+    expect(beatX(laid, above, 1)).toBeCloseTo(midOf(laid, word + 2, word + 4), 6); // "lk", up to the sung split before "ing"
   });
 
   it("moves opening punctuation with its word when a gap opens before it", () => {
@@ -173,13 +173,25 @@ describe("layoutLine", () => {
       expect(xs[0]!).toBeLessThan(xs[2]!);
       expect(xs[2]!).toBeLessThan(xs[1]!);
       const g = groupRuns([chord("G")]).beatPoint!;
-      expect(xs[1]!).toBeCloseTo(textWidth("river", CHART.lyric.size) / 2 - g, 6);
+      expect(xs[1]!).toBeCloseTo(textWidth("riv", CHART.lyric.size) / 2 - g, 6);
     });
 
     it("'before' a syllable inside a word splits the word with a hyphen", () => {
       const word = LYRIC.indexOf("Walking");
       const laid = layoutLine(line([{ at: word + 4, place: "before", items: [chord("D")] }])); // "Walk|ing"
       expect(laid.lyrics.some((p) => p.runs[0]!.kind === "text" && p.runs[0]!.text === "-")).toBe(true);
+    });
+
+    it("before / on / after work on a syllable inside a word too", () => {
+      const ing = LYRIC.indexOf("Walking") + 4; // "Walk|ing"
+      const xs = (["after", "on", "before"] as const).map((place) => {
+        const laid = layoutLine(line([{ at: ing, place, items: [chord("D")] }]));
+        return laid.chords[0]!.x - drawnCharX(laid, ing);
+      });
+      expect(xs[0]!).toBeLessThan(xs[2]!);
+      expect(xs[2]!).toBeLessThan(xs[1]!);
+      const g = groupRuns([chord("D")]).beatPoint!;
+      expect(xs[1]!).toBeCloseTo(textWidth("ing", CHART.lyric.size) / 2 - g, 6);
     });
   });
 
@@ -244,14 +256,14 @@ describe("lyricEntry (lyric comes in after the downbeat)", () => {
     const at = LYRIC.indexOf("river");
     const above = [downbeat, { at, items: [chord("C")] }];
     const laid = layoutLine({ ...line(above), lyricEntry: "2" });
-    expect(beatX(laid, above, 1)).toBeCloseTo(midOf(laid, at, at + 5), 6);
-    // "Walking" is too wide to center one beat after G, so it is pushed later, never earlier.
-    expect(midOf(laid, 0, 7)).toBeGreaterThanOrEqual(beatX(laid, above, 0) + per - 1e-6);
+    expect(beatX(laid, above, 1)).toBeCloseTo(midOf(laid, at, at + 3), 6);
+    // "Walk" (of Walk|ing) is centered one beat after G, or later if it can't fit, never earlier.
+    expect(midOf(laid, 0, 4)).toBeGreaterThanOrEqual(beatX(laid, above, 0) + per - 1e-6);
   });
 
   it("without lyricEntry, the downbeat chord centers over the first syllable", () => {
     const laid = layoutLine(line([downbeat]));
-    expect(beatX(laid, [downbeat], 0)).toBeCloseTo(midOf(laid, 0, 7), 6);
+    expect(beatX(laid, [downbeat], 0)).toBeCloseTo(midOf(laid, 0, 4), 6); // "Walk"
   });
 
   it("warns and ignores a tag that is not a single beat", () => {

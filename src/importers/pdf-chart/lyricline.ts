@@ -9,6 +9,7 @@ import type { LyricPiece, LyricStyle } from "../../model/chart.js";
 import { RULES } from "../../rules/index.js";
 import type { Glyph } from "./extract.js";
 import { colorName } from "./style.js";
+import { syllableStarts } from "../../text/syllables.js";
 
 const I = RULES.import, S = RULES.symbols;
 
@@ -25,7 +26,7 @@ export interface ParsedLyric {
 
 const isLetter = (ch: string | undefined) => ch !== undefined && /[\p{L}\p{N}'’]/u.test(ch);
 
-export function parseLyricRow(glyphsIn: Glyph[], mainSize: number, flag: (msg: string) => void): ParsedLyric {
+export function parseLyricRow(glyphsIn: Glyph[], mainSize: number, flag: (msg: string) => void, language?: string): ParsedLyric {
   const gs = [...glyphsIn].sort((a, b) => a.x0 - b.x0);
   while (gs.length && gs[0]!.ch === " ") gs.shift();
   const lyrics: LyricPiece[] = [];
@@ -112,7 +113,8 @@ export function parseLyricRow(glyphsIn: Glyph[], mainSize: number, flag: (msg: s
     prev = g;
   }
 
-  // Syllables: words, split again where a syllable hyphen was removed.
+  // Syllables: words, split where a syllable hyphen was removed and at sung syllables (Walk|ing).
+  for (const m of text.matchAll(/[\p{L}\p{N}'’]+/gu)) for (const st of syllableStarts(m[0], language)) splits.add(m.index + st);
   const syllables: Syllable[] = [];
   let k = 0;
   while (k < text.length) {

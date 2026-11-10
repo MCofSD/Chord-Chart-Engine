@@ -32,6 +32,10 @@ const FONT_ATTRS: Record<Face, string> = {
   arialItalic: `font-family="Arimo, Arial, 'Liberation Sans', sans-serif" font-style="italic"`,
   calibri: `font-family="Carlito, Calibri, sans-serif"`,
   calibriBold: `font-family="Carlito, Calibri, sans-serif" font-weight="700"`,
+  calibriItalic: `font-family="Carlito, Calibri, sans-serif" font-style="italic"`,
+  calibriBoldItalic: `font-family="Carlito, Calibri, sans-serif" font-weight="700" font-style="italic"`,
+  courier: `font-family="'TeX Gyre Cursor', 'Courier New', monospace"`,
+  courierBold: `font-family="'TeX Gyre Cursor', 'Courier New', monospace" font-weight="700"`,
 };
 
 export const fmt = (v: number) => {

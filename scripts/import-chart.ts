@@ -1,7 +1,7 @@
 /**
  * Imports a legacy chart PDF into chart JSON, for human review.
  *
- * Run: npm run import-chart -- "<chart.pdf>" [outDir]
+ * Run: npm run import-chart -- "<chart.pdf>" [outDir] [--language es]
  * Default outDir: local/imports/<name> (gitignored: charts contain copyrighted lyrics).
  * Re-running replaces that folder's chart and outputs (owner, 2026-11-09).
  *
@@ -19,13 +19,16 @@ import * as mupdf from "mupdf";
 import { PNG } from "pngjs";
 import { importChartPdf } from "../src/importers/pdf-chart/index.js";
 import { renderChart } from "../src/chart/render.js";
-import { rasterize, writePagePngs, writePdf } from "./lib/output.js";
+import { notationFrom, rasterize, writePagePngs, writePdf } from "./lib/output.js";
 
 const WIDTH = 918; // px per page in the comparison (1.5 x 612 pt)
 
 // "--force" was needed before re-runs overwrote by default; it is accepted and ignored.
-const [pdfPath, outArg] = process.argv.slice(2).filter((a) => a !== "--force");
-if (!pdfPath) throw new Error('usage: npm run import-chart -- "<chart.pdf>" [outDir]');
+const argv = process.argv.slice(2);
+const langAt = argv.indexOf("--language");
+const language = langAt >= 0 ? argv[langAt + 1] : undefined;
+const [pdfPath, outArg] = argv.filter((a, i) => a !== "--force" && (langAt < 0 || (i !== langAt && i !== langAt + 1)));
+if (!pdfPath) throw new Error('usage: npm run import-chart -- "<chart.pdf>" [outDir] [--language es]');
 const fileName = basename(pdfPath);
 const name = fileName.replace(/\.pdf$/i, "").replace(/ - .*/, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
 const outDir = outArg ?? join("local", "imports", name);
@@ -36,11 +39,11 @@ const pageFile = new RegExp(`^(compare-p\\d+\\.png|${name}-p\\d+\\.(svg|png)|sni
 for (const f of readdirSync(outDir)) if (pageFile.test(f)) rmSync(join(outDir, f));
 
 const bytes = readFileSync(pdfPath);
-const { chart, review, assets } = importChartPdf(bytes, { fileName });
+const { chart, review, assets } = importChartPdf(bytes, { fileName, ...(language ? { language } : {}) });
 for (const a of assets) writeFileSync(join(outDir, a.name), PNG.sync.write(a.png));
 writeFileSync(join(outDir, `${name}.json`), JSON.stringify(chart, null, 2) + "\n");
 
-const { pages, warnings } = renderChart(chart);
+const { pages, warnings } = renderChart(chart, { notation: notationFrom(outDir) });
 pages.forEach((svg, i) => writeFileSync(join(outDir, `${name}-p${i + 1}.svg`), svg));
 writePagePngs(pages, outDir, outDir, name);
 writePdf(pages, outDir, join(outDir, `${name}.pdf`));

@@ -36,6 +36,10 @@ Do not start items 3 and later until asked.
 
 Status (2026-11-08): item 1 done. Item 3 started at the owner's request, ahead of item 2: phase 1 renders charts from `src/model/chart.ts` to SVG pages (`src/chart/`), with decisions and measurements in NOTES.md. Item 2 (cover layout solver) not started.
 
+Status (2026-11-09, latest): item 2 done: cover pages (`src/cover/`: layout solver and renderer, Legend from the registry) and a shared voicing library (`src/voicings/library.json`, starter shapes awaiting owner review). `render-chart` puts the cover first in the PDF. Measurements and decisions in NOTES.md; filled cover samples still to come from the owner.
+
+Status (2026-11-09, later): native notation phase 1 done: `notation` blocks (MusicXML drawn by alphaTab, symbols as Bravura outlines, chord names and the lyric line below on the real beats). Next: phase 2 MIDI in, phase 3 picture in, phase 4 importer (plan in NOTES.md). Waiting on one Cubase MusicXML + MIDI export from the owner to check what Cubase writes.
+
 Status (2026-11-09): rhythm spacing done (NOTES.md). Item 5 started at the owner's request: a PDF chart importer (`src/importers/pdf-chart/`, `npm run import-chart`). **All formatting rules live in `rules/chart-rules.json`**, read by both the renderer and the importer; a rule change must need no code change in either (owner). Put new rules there, not in code.
 
 ## 3. Sample files (ground truth)
@@ -219,7 +223,7 @@ Point sizes at 100% (1 R = 18.665 pt): root 24 pt, root flat/sharp 20 pt, qualit
 - Never edit files in `samples/`.
 - Prefer measured values from the samples over guesses. State uncertainty and add a `(verify)` note rather than inventing rules.
 - When a symbol or rule is not in section 5, do not invent semantics. List it as an open question.
-- Notation snippets stay as **PNG assets** in early phases (placed as flow blocks with a cue number and instrument label). Native notation rendering is a later decision (candidate: alphaTab, with Cubase MusicXML export to be checked).
+- ~~Notation snippets stay as PNG assets in early phases.~~ **Decided 2026-11-09 (owner): native notation.** Notation is stored as **MusicXML** (keeps strings/frets, ties, beaming) and drawn by **alphaTab**; tab, standard, or both per block. Inputs: Cubase MusicXML/MIDI exports (Cubase projects exist for most charts), MIDI files, and pictures (Audiveris for standard notation, our own reader for tab; Java is acceptable). PNG snippets remain as a fallback. Transcriptions are copyrighted: keep them in `local/`.
 
 ## 9. Decisions already made
 

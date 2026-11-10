@@ -170,3 +170,68 @@ Checked on all five sample PDFs: every section, chord, beat tag, stop, ending, a
 
 - Notation images placed off the content edge in the originals (x 21-57 pt) are drawn at the edge; their timelines and overlays are measured from the image itself, so lyrics still line up.
 - Still flagged by design: a label letter right of the label column (Awitin "End Ch" + "o" at x 44, past the content edge), and text over the middle of a notation image (dropped; it is part of the drawing).
+
+# Native notation (owner, 2026-11-09)
+
+Notation is data: a `notation` block in the chart points to a **MusicXML** file next to the chart JSON and says which staves to show (`tab`, `standard`, `both`) and which bars. MIDI is an input and an export; MusicXML is what's stored, because it keeps strings and frets, ties and beaming, and every notation tool reads it.
+
+## Phase 1: drawing (done)
+
+- [src/notation/render.ts](src/notation/render.ts): alphaTab 1.8.4 (MPL-2.0) lays the MusicXML out as SVG in Node, synchronously, in one row justified to the content width. Titles, tuning, track names, alphaTab's chord names and bar numbers are hidden (the chart supplies those). alphaTab's "rendered by alphaTab" footer is left out of the page; alphaTab is credited in the README.
+- Music symbols come out of alphaTab as Bravura font characters; they are converted to **outlines** with opentype.js (MIT), so pages look the same in any viewer, in resvg and in the PDF, like our other symbols. Bravura (OFL) is bundled in `assets/fonts/`.
+- Beat positions come from alphaTab's bounds lookup. [src/notation/axis.ts](src/notation/axis.ts) turns them into a time axis: chord names (`above`, each at a bar and beat) put their weighted middle on the beat, and a lyric line directly under the notation is spaced on the same beats (rhythm marks).
+- Rules: `notation` in the rules file. Scale 0.57 puts tab lines about 7.4 pt apart, like today's Cubase snippets (verify on paper).
+- If a notation can't be drawn: its `fallback` image (e.g. the original PNG snippet), else a dashed placeholder, with a warning.
+- Demo: `test/fixtures/charts/notation-demo.json` with a made-up riff (`test/fixtures/notation/riff.musicxml`); shown in `npm run preview`.
+
+## Next phases (plan)
+
+2. **MIDI in**: @tonejs/midi; timing snapped to the rules' grid (16ths, triplets); meter/tempo; fret assignment for tab (playable positions in the tuning, least hand movement); MusicXML writer; flags for anything uncertain. MIDI out via alphaTab.
+3. **Picture in**: tab pictures by our own reader (staff/bar/column detection already in the PDF importer, fret digits by template matching, rhythm from stems/beams/flags/rests); standard notation via the Audiveris CLI (Java). Audiveris skips tab staves, so the tab reader is ours.
+4. **Importer**: snippet images become notation blocks (PNG kept as fallback), baked chord names become `above`; prefer Cubase MusicXML exports when supplied.
+
+Open: what Cubase's MusicXML export contains (does tab string/fret survive?). Waiting on one export from the owner.
+
+# Sung syllables (owner, 2026-11-09)
+
+"Walking is a two-syllable word": a beat sits on the middle of its **sung syllable**, so a mark or chord on "Walking" centers "Walk", not the whole word. [src/text/syllables.ts](src/text/syllables.ts):
+- Hyphenation patterns for the chart's language (`hyphen` package, ISC; en, es, pt, fr, it, de mapped in `lyrics.patterns`).
+- Patterns avoid short edge splits (to-night, a-way, ev-er), which singing needs, so pieces with several vowel groups are split by a sung-syllable rule: before one consonant, between two, digraphs kept together per language (`lyrics.digraphs`: English sing|er and fa|ther; default/Tagalog pa|nga|rap), silent final e kept in the syllable before (breathe, you've), "y" before a vowel is a consonant (sa|yaw, be|yond). Languages without patterns (Tagalog) use the rule alone.
+- `lyrics.exceptions` overrides any word ("fi-re" or "fire").
+- Charts carry `meta.language` (default `lyrics.defaultLanguage`, "en"); the importer takes `--language`.
+- Effect: a chord "on" a long word now centers over that word's first syllable (riv|er, mov|ing), across all charts. Checked: Walk lands on the second note (beat 1&) in the notation demo.
+
+# Cover pages (CLAUDE.md §2 item 2; owner, 2026-11-09)
+
+## How it was measured
+
+The four Word cover templates in `samples/` were exported to PDF with Word (read-only, outside the repo) and their text, shapes and images read with mupdf. Every value is in the `cover` section of the rules file. The filled covers (24K Magic, Mad World), the Legend image and the 4, 5 and 7 column templates are still to come from the owner; values not backed by a template are marked (verify) there.
+
+- Page: light blue background `#BDD6EE`; logo 177.5 x 86.5 pt, centered, with Word's soft shadow; two dark blue rules (`#203580`, 1.4 pt); title in Courier New 36 (upper case); "Artist, Year " in Courier New 24 and "(Key of X, Original)" in 20.
+- Panels: dark blue header bar (`#203580`, light blue `#5B9BD5` outline) with "CHORDS:" / "LEGEND:" in Courier New Bold 18, white; body outlined in light blue, 0.5 pt, no fill.
+- Chords panel: tuning label Calibri Bold Italic 13, red; notes under diagrams Calibri Italic 11, red, centered; "Alternate (for Acoustic):" Calibri Italic 13 after a double rule; "Continued at back of page" Calibri Bold Italic 13, red.
+- Legend: footnotes Arial Bold 10, justified, hanging indent; entries Arial 9 beside their symbols. Wording copied from the template into the rules file.
+- Footer: "Musiciansclub.com" (Calibri Italic 11, link blue, underlined) and the date (Calibri 11).
+
+## Decisions
+
+- **Diagram count -> columns** (owner): the fewest columns that fit, default 5, minimum 4, even use of the white space. Implemented as: 5 if it fits, else 6, 7, 8; 4 instead of 5 when the last row is fuller and the diagrams stay at 4 columns' full size. Each count takes the largest scale (5% steps) that fits both the width (5 pt minimum gap) and the rows. This reproduces the templates (6x7 = 42 at 60%, 8x7 = 56 at 65%, page 2 4x5 = 20) and gives 90% at 4 columns, 70% at 5, 75% (or 65% when needed) at 7.
+- 4 to 6 columns sit beside the Legend (6-column template); 7 and 8 use the full width (8-column template) and the Legend gets page 2 (Legend-only template). Past 56, page 2 is "CHORDS (con't.)" beside the Legend. Past 56 + 20: a warning (open question §10.3).
+- Columns are spread evenly over the panel width; rows are spaced evenly, never wider apart than the columns. The last row is left-aligned, like images pasted inline in Word (verify).
+- Page 1 keeps the two templates' own header positions (the 8-column one sits 4.6 pt higher and starts its panel 20.8 pt higher, which it needs for 7 rows at 65%). Page 2 keeps its 0.5 in side margins. One header bar height (28 pt) is used everywhere; the templates vary from 24 to 34 pt.
+- "Original" prints unless `meta.originalKey` differs from `meta.key` (§10.8 still open).
+- The single divider line after the first diagram row in the templates is not drawn (its meaning is open question §10.2).
+- Fonts: Courier New -> TeX Gyre Cursor (same widths; thin strokes like Courier New, unlike Cousine, which was tried first and looked too heavy); Calibri Italic and Bold Italic -> Carlito.
+- The "60% scale (6x7=42 chords)" lines in the templates are notes to the author and are not printed.
+
+## Voicing library
+
+- `src/voicings/library.json`, written once by `scripts/gen-voicings.ts`: the four Corel diagrams (defaults for Fm, Eb, Bb, Ab), open chords, and E-shape / A-shape barre chords for every root in the qualities the five sample charts use (Maj7, m7, 5, sus, 7sus2, dim, dim7, m7b5 and others). Aliases map other spellings (maj7, sus4, (m)5).
+- Like the Corel diagrams, a shape starts one fret above its lowest fret when it has room, with the fret number beside the lowest fret. Only one-digit fret numbers fit beside the grid, so positions from fret 10 up are left out of the library.
+- Every starter shape carries a review flag; covers list the unapproved shapes they use. Missing so far: G and G#/Ab sus2 and 7sus2; G#/Ab 6; G#/Ab, A and A#/Bb 9. Charts with those get an empty diagram and a warning.
+
+## Open questions (cover)
+
+- Courier/Calibri look-alikes, logo shadow, header bar height, last-row alignment, Legend rule color: check against the filled covers when they arrive.
+- Do "(m)5" and "5(m)" mean a power chord? (aliased to "5" for now.)
+- Does a bass change ("/E" with no chord) need its own diagram? Each one gets one now ("C/E").

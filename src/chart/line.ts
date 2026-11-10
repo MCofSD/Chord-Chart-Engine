@@ -10,6 +10,7 @@
 import type { LineBlock, LyricStyle, Meter } from "../model/chart.js";
 import { groupRuns, itemRuns } from "./items.js";
 import { lineTiming, type LineTiming } from "./timing.js";
+import { syllableStarts } from "../text/syllables.js";
 import { runsWidth, type Run } from "./runs.js";
 import { CHART } from "./tokens.js";
 
@@ -50,6 +51,8 @@ export interface LineOptions {
   axis?: (t: number) => number;
   /** Precomputed timing (fitLine reuses it across trial layouts). */
   timing?: LineTiming;
+  /** Language of the lyrics, for sung syllables. Default: rules lyrics.defaultLanguage. */
+  language?: string;
 }
 
 export function layoutLine(block: LineBlock, opts: LineOptions = {}): LaidLine {
@@ -139,6 +142,8 @@ export function layoutLine(block: LineBlock, opts: LineOptions = {}): LaidLine {
   // syllable. A syllable runs from its character to the end of the word or
   // to the next anchored or marked character inside the word ("start|ed").
   const boundaries = new Set<number>([...timing.anchors.map((a) => a.at), ...timing.marks.map((m) => m.at)]);
+  // Sung syllables split words too (Walk|ing), so a beat lands on the middle of its own syllable.
+  for (const m of text.matchAll(/[\p{L}\p{N}'’]+/gu)) for (const s of syllableStarts(m[0], opts.language)) boundaries.add(m.index + s);
   /** Half the width of the syllable starting at character `at` (0 if it isn't a letter). */
   const syllableHalf = (at: number): number => {
     if (!isLetter(text[at])) return 0;
@@ -268,6 +273,8 @@ export interface FitOptions {
   left?: number;
   right?: number;
   meter?: Meter;
+  /** Language of the lyrics, for sung syllables. */
+  language?: string;
   /** Time axis under a notation snippet; such lines are not flexed or wrapped. */
   axis?: (t: number) => number;
 }
@@ -284,10 +291,11 @@ export function fitLine(block: LineBlock, opts: FitOptions = {}): LaidLine[] {
   const left = opts.left ?? CHART.content.left;
   const right = opts.right ?? CHART.content.right;
   const timing = lineTiming(block, opts.meter);
-  if (opts.axis) return [layoutLine(block, { left, right, axis: opts.axis, timing })];
+  const lang = opts.language !== undefined ? { language: opts.language } : {};
+  if (opts.axis) return [layoutLine(block, { left, right, axis: opts.axis, timing, ...lang })];
 
   const full = CHART.spacing.beatWidth;
-  const one = (f: number) => [layoutLine(block, { left, right, beatWidth: full * f, timing })];
+  const one = (f: number) => [layoutLine(block, { left, right, beatWidth: full * f, timing, ...lang })];
   const f = bestFactor(one, right);
   if (f !== undefined) return one(f);
   const tight = one(0);
@@ -303,7 +311,7 @@ export function fitLine(block: LineBlock, opts: FitOptions = {}): LaidLine[] {
     const starts = evenBarStarts(n, k);
     if (starts.some((b) => !timing.bars[b]!.clean)) continue; // a row must start at a group's bar line
     const rows = splitLine(block, timing, starts);
-    const layRows = (fr: number) => rows.map((r) => layoutLine(r.block, { left, right, meter: r.meter, beatWidth: full * fr }));
+    const layRows = (fr: number) => rows.map((r) => layoutLine(r.block, { left, right, meter: r.meter, beatWidth: full * fr, ...lang }));
     const fr = bestFactor(layRows, right);
     if (fr !== undefined) return layRows(fr);
     const tightRows = layRows(0);

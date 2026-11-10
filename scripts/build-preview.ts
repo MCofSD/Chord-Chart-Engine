@@ -12,7 +12,11 @@ import { compareSample, toPng } from "../test/visual.js";
 import * as mupdf from "mupdf";
 import { PNG } from "pngjs";
 import { renderChart } from "../src/chart/render.js";
+import { notationFrom, rasterize } from "./lib/output.js";
 import type { Chart } from "../src/model/chart.js";
+import { renderCover } from "../src/cover/render.js";
+import { LIBRARY } from "../src/voicings/index.js";
+import { chordLabel } from "../src/model/voicing.js";
 
 /** Placeholder notation image for the demo chart: a 5-line staff. */
 function placeholderStaff(): Buffer {
@@ -47,9 +51,15 @@ function chartSection(): string {
   const demoPages = renderChart(demo);
   const page = (svg: string) => `<div class="page">${svg.replace('width="8.5in" height="11in"', 'width="100%"')}</div>`;
   const warn = demoPages.warnings.length ? `<p>Warnings: ${demoPages.warnings.join("; ")}</p>` : "";
+  // Native notation (MusicXML drawn by alphaTab), with a made-up riff.
+  const nDemo: Chart = JSON.parse(readFileSync("test/fixtures/charts/notation-demo.json", "utf8"));
+  const nPages = renderChart(nDemo, { notation: notationFrom("test/fixtures/charts") });
   const demoHtml = `<h2>Chart renderer</h2>
 <p>Demo chart with made-up lyrics, using every mark the renderer supports (the notation image is a placeholder staff).</p>${warn}
-<div class="pages">${demoPages.pages.map(page).join("")}</div>`;
+<div class="pages">${demoPages.pages.map(page).join("")}</div>
+<h2>Native notation</h2>
+<p>A made-up riff stored as MusicXML and drawn by the program: tab in the intro, standard notation and tab in the verse. Chord names and the lyric line below sit on the notation's real beats.</p>${nPages.warnings.length ? `<p>Warnings: ${nPages.warnings.join("; ")}</p>` : ""}
+<div class="pages">${nPages.pages.map(page).join("")}</div>`;
   if (!existsSync(SUBG_PDF) || !existsSync(SUBG_FIXTURE)) return demoHtml;
   writeFileSync("preview/png/subg-chorus-original.png", pdfCrop(SUBG_PDF, 1, 0, 668));
   const excerpt: Chart = JSON.parse(readFileSync(SUBG_FIXTURE, "utf8"));
@@ -59,6 +69,32 @@ function chartSection(): string {
 <p>Chords are pinned to syllables, so horizontal positions differ from the tab-stop layout of the original by design. Fonts, sizes, colors and vertical spacing should match.</p>
 <div class="pages"><div class="page"><img src="png/subg-chorus-original.png" alt="Original PDF, page 1 top to chorus" style="width:100%"><p class="cap">Original PDF (page 1; chorus at the bottom)</p></div>
 ${page(excerptPage).replace("</div>", '<p class="cap">Rendered from data (chorus only)</p></div>')}</div>`;
+}
+
+/** Covers for made-up charts with different numbers of chords, to show the layout solver's choices. */
+function coverSection(): string {
+  const names = [...new Set(LIBRARY.map((e) => chordLabel(e.voicing.chord)))];
+  const pick = (n: number) => Array.from({ length: n }, (_, i) => names[(i * 37) % names.length]!);
+  const demos: [number, string, Chart["cover"]][] = [
+    [4, "4 chords", { diagrams: [{ chord: "Ab", note: "for Bridge only" }, { chord: "Bb" }, { chord: "Eb" }, { chord: "Fm" }] }],
+    [9, "9 chords with an alternate group", { diagrams: [...pick(7).map((chord) => ({ chord })), { chord: "Cadd9", group: "alternate" as const }, { chord: "G", group: "alternate" as const }] }],
+    [30, "30 chords", { diagrams: pick(30).map((chord) => ({ chord })) }],
+    [42, "42 chords", { diagrams: pick(42).map((chord) => ({ chord })) }],
+    [60, "60 chords (overflow to page 2)", { diagrams: pick(60).map((chord) => ({ chord })) }],
+  ];
+  const parts = demos.map(([n, label, cover]) => {
+    const chart: Chart = { meta: { title: "Song Title", artist: "Artist", year: 2026, key: "G", date: "2026-11-09", tuning: "Eb Standard Tuning" }, sections: [], ...(cover ? { cover } : {}) };
+    const r = renderCover(chart);
+    const imgs = r.pages.map((svg, i) => {
+      const file = `png/cover-${n}-p${i + 1}.png`;
+      writeFileSync(`preview/${file}`, PNG.sync.write(rasterize(svg, ".", 918)));
+      return `<div class="page"><img src="${file}" alt="Cover page ${i + 1}, ${label}" style="width:100%"><p class="cap">Page ${i + 1}</p></div>`;
+    });
+    return `<h3>${label}: ${r.layout.columns} columns at ${Math.round(r.layout.scale * 100)}%</h3><div class="pages">${imgs.join("")}</div>`;
+  });
+  return `<h2>Cover pages</h2>
+<p>Made-up charts. The solver picks the fewest columns that fit (default 5, 4 when the last row is fuller), the largest scale, and moves the Legend to page 2 from 7 columns. Diagrams come from the starter voicing library (to be reviewed).</p>
+${parts.join("")}`;
 }
 
 const NAMES = ["Fm", "Eb", "Bb", "Ab"];
@@ -127,7 +163,7 @@ ${font("Arimo_400Regular_Italic.ttf", 400, "italic")}
 @font-face{font-family:Carlito;src:url("../assets/fonts/Carlito_700Bold.ttf") format("truetype");font-weight:700}
 .pages{display:flex;flex-wrap:wrap;gap:16px}.page{width:min(100%,612px);border:1px solid #c9d2de;background:#fff}.page svg{display:block}.cap{font-size:13px;margin:6px 8px}
 body{margin:0;padding:24px 16px;background:#fff;color:#1c2430;font:15px/1.5 Arimo,Arial,sans-serif}
-h1{font-size:24px;margin:0 0 4px}h2{font-size:17px;margin:28px 0 8px}
+h1{font-size:24px;margin:0 0 4px}h2{font-size:17px;margin:28px 0 8px}h3{font-size:15px;margin:20px 0 8px}
 .panel{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:flex-end;background:#dce9f5;padding:14px}
 figure{margin:0;text-align:center}figcaption{font-size:12px}
 table{border-collapse:collapse;margin-top:8px}th,td{border:1px solid #c9d2de;padding:8px;vertical-align:top;text-align:left}
@@ -147,6 +183,7 @@ ${nameSection}
 ${compareRows}
 </table></div>
 ${chartSection()}
+${coverSection()}
 </body>
 </html>
 `,

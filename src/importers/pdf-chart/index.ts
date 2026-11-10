@@ -29,6 +29,8 @@ export interface ImportResult {
 export interface ImportOptions {
   /** File name, e.g. "Title - Artist (2004).pdf": the most reliable source of title, artist and year. */
   fileName?: string;
+  /** Language of the lyrics ("en", "es", "tl"...), for sung syllables; stored in the chart. Default: rules lyrics.defaultLanguage. */
+  language?: string;
 }
 
 interface Row { page: number; y: number; glyphs: Glyph[]; mainSize: number; kind: "chord" | "lyric" | "note" }
@@ -45,12 +47,13 @@ export function importChartPdf(bytes: Uint8Array, opts: ImportOptions = {}): Imp
     const edges = [...page.rules.filter((y) => y >= top), I.footerMinY];
     for (let k = 0; k + 1 < edges.length; k++) {
       const y0 = edges[k]!, y1 = edges[k + 1]!;
-      const band = readBand(page, pi, y0, y1, review, assets, sections);
+      const band = readBand(page, pi, y0, y1, review, assets, sections, opts.language);
       if (!band) continue;
       if (band.label || band.isRepeat || !sections.length) sections.push(band.section);
       else sections[sections.length - 1]!.blocks.push(...band.section.blocks); // section continued across a rule or page
     }
   }
+  if (opts.language) meta.language = opts.language;
   return { chart: { meta, sections }, review, assets };
 }
 
@@ -112,7 +115,7 @@ function toRows(all: Glyph[]): Row[] {
   });
 }
 
-function readBand(page: PdfPage, pi: number, y0: number, y1: number, review: ReviewItem[], assets: ImportResult["assets"], earlier: Section[]) {
+function readBand(page: PdfPage, pi: number, y0: number, y1: number, review: ReviewItem[], assets: ImportResult["assets"], earlier: Section[], language: string | undefined) {
   const inBand = (y: number) => y > y0 + 0.5 && y < y1 - 0.5;
   const glyphs = page.glyphs.filter((g) => inBand(g.y));
   const images = page.images.filter((im) => inBand(im.y + im.h / 2));
@@ -181,13 +184,13 @@ function readBand(page: PdfPage, pi: number, y0: number, y1: number, review: Rev
       const next = entries[k + 1]?.row;
       const lyric = next && next.kind === "lyric" && next.y - row.y <= I.rowPair ? next : undefined;
       if (lyric) k++;
-      const parsed = lyric ? parseLyricRow(lyric.glyphs, lyric.mainSize, flagAt(lyric.y)) : undefined;
+      const parsed = lyric ? parseLyricRow(lyric.glyphs, lyric.mainSize, flagAt(lyric.y), language) : undefined;
       blocks.push(buildLine(groups, parsed, flagAt(row.y)));
       prevSnippet = undefined;
       continue;
     }
     // A lyric line without chords: under a notation image, guess its rhythm from the image.
-    const parsed = parseLyricRow(row.glyphs, row.mainSize, flagAt(row.y));
+    const parsed = parseLyricRow(row.glyphs, row.mainSize, flagAt(row.y), language);
     const line: LineBlock = { kind: "line", lyrics: parsed.lyrics, above: [] };
     if (prevSnippet?.timeline) {
       const marks = rhythmFromTimeline(parsed, prevSnippet.timeline.bars, prevSnippetX);

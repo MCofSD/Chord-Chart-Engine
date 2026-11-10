@@ -8,4 +8,5 @@ import { RULES } from "../rules/index.js";
 export const CHART = {
   ...RULES.render,
   colors: { ...RULES.render.colors, ...RULES.legend.colors },
+  notation: RULES.notation,
 };

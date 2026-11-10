@@ -1,0 +1,63 @@
+{
+  "_note": "Made-up chart and riff for testing native notation (no song material).",
+  "meta": { "title": "Notation Demo", "artist": "Test Band", "year": 2026, "key": "E", "bpm": 120, "date": "2026-11-09" },
+  "sections": [
+    {
+      "type": "intro",
+      "label": "Intro",
+      "blocks": [
+        {
+          "kind": "notation",
+          "src": "../notation/riff.musicxml",
+          "staves": "tab",
+          "instrument": "Lead",
+          "above": [
+            { "bar": 1, "beat": "1", "items": [{ "t": "chord", "chord": { "root": "E", "quality": "5" } }, { "t": "ref", "n": 1 }] },
+            { "bar": 1, "beat": "2", "items": [{ "t": "chord", "chord": { "root": "G", "quality": "5" } }] },
+            { "bar": 1, "beat": "3", "items": [{ "t": "chord", "chord": { "root": "A", "quality": "5" } }] },
+            { "bar": 1, "beat": "4", "items": [{ "t": "chord", "chord": { "root": "B", "quality": "5" } }] },
+            { "bar": 2, "beat": "1", "items": [{ "t": "chord", "chord": { "root": "D", "quality": "5" } }] },
+            { "bar": 2, "beat": "3", "items": [{ "t": "chord", "chord": { "root": "G", "quality": "5" }, "beats": "3" }, { "t": "instrument", "op": "add", "text": "Drm", "beats": "4" }] }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "verse",
+      "label": "1st Ver",
+      "blocks": [
+        {
+          "kind": "notation",
+          "src": "../notation/riff.musicxml",
+          "staves": "both",
+          "bars": [1, 1],
+          "above": [
+            { "bar": 1, "beat": "1", "items": [{ "t": "chord", "chord": { "root": "E", "quality": "m7" } }] },
+            { "bar": 1, "beat": "3", "items": [{ "t": "chord", "chord": { "root": "A", "quality": "7" } }] }
+          ]
+        },
+        {
+          "kind": "line",
+          "lyrics": [{ "text": "Walking down the river road" }],
+          "above": [],
+          "rhythm": [
+            { "at": 0, "beat": "1&", "bar": 1 },
+            { "at": 8, "beat": "2&", "bar": 1 },
+            { "at": 13, "beat": "3", "bar": 1 },
+            { "at": 17, "beat": "3&", "bar": 1 },
+            { "at": 23, "beat": "4", "bar": 1 }
+          ]
+        },
+        {
+          "kind": "line",
+          "lyrics": [{ "text": "Lanterns on the water shine" }],
+          "above": [
+            { "at": 0, "items": [{ "t": "bar" }, { "t": "chord", "chord": { "root": "E", "quality": "m7" } }] },
+            { "at": 15, "items": [{ "t": "bar" }, { "t": "chord", "chord": { "root": "A", "quality": "7" } }] }
+          ],
+          "lyricEntry": "2"
+        }
+      ]
+    }
+  ]
+}

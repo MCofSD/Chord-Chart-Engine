@@ -5,8 +5,9 @@
  * always produces the same SVG, with no DOM or browser (CLAUDE.md §6.5, §7).
  * Headless Chromium can print the pages to PDF later.
  */
-import { resolveRepeats, type Block, type Chart, type Meter, type NoteBlock, type SectionRef, type SnippetBlock } from "../model/chart.js";
-import { itemRuns } from "./items.js";
+import { beatOffset, resolveRepeats, type Block, type Chart, type Meter, type NotationBlock, type NoteBlock, type SectionRef, type SnippetBlock } from "../model/chart.js";
+import { notationAxis, type NotationRender } from "../notation/axis.js";
+import { groupRuns, itemRuns } from "./items.js";
 import { fitLine, type LaidLine } from "./line.js";
 import { DEFAULT_METER, lineTiming } from "./timing.js";
 import { esc, fmt, runsToSvg, runsWidth, type Run } from "./runs.js";
@@ -16,6 +17,12 @@ import { textWidth } from "../text/metrics.js";
 export interface RenderChartOptions {
   /** Lowest y a section rule may sit at before the section moves to the next page. */
   bottomLimit?: number;
+  /**
+   * Draws a notation block (see src/notation/render.ts; scripts pass one that
+   * reads the MusicXML next to the chart). Without it, notation blocks show
+   * their fallback image, or a placeholder.
+   */
+  notation?: (block: NotationBlock, width: number) => NotationRender;
 }
 
 export interface RenderedChart {
@@ -63,7 +70,10 @@ function sectionStyle(index: number, colors: RepeatColors): { fill: string; bold
 }
 
 /** A laid block; a line that wrapped has several rows, each a chord row and a lyric row. */
-interface LaidBlock { block: Block; rows?: LaidLine[] }
+interface LaidBlock { block: Block; rows?: LaidLine[]; notation?: LaidNotation }
+
+/** A drawn notation block: the notation, and its chord-name row (if any). */
+interface LaidNotation { render?: NotationRender; above: { x: number; runs: Run[] }[]; hasRow: boolean }
 
 /**
  * Vertical spacing. Normally the measured values; tightened toward
@@ -81,6 +91,11 @@ function vertical(s: number): Vertical {
 
 function blockHeight(b: LaidBlock, V: Vertical): number {
   if (b.block.kind === "snippet") return b.block.height;
+  if (b.block.kind === "notation") {
+    const n = b.notation!;
+    const body = n.render?.height ?? b.block.fallback?.height ?? P.notation.placeholderHeight;
+    return (n.hasRow ? V.rowHeight : 0) + body + P.notation.gapBelow;
+  }
   if (b.block.kind === "note") return V.rowHeight;
   return b.rows!.reduce((h, r) => h + rowCount(r), 0) * V.rowHeight;
 }
@@ -98,15 +113,57 @@ function snippetAxis(snippet: SnippetBlock, meter: Meter): ((t: number) => numbe
   };
 }
 
+/**
+ * Draws a notation block and places its chord names on the real beats; the
+ * group's beat point (a chord's weighted middle) sits on the beat, pushed
+ * right only if it would collide with the one before.
+ */
+function layoutNotation(block: NotationBlock, draw: RenderChartOptions["notation"], warnings: string[]): LaidNotation {
+  let render: NotationRender | undefined;
+  if (draw) {
+    try { render = draw(block, P.content.right - P.content.left); warnings.push(...render.warnings); }
+    catch (e) { warnings.push(`notation ${block.src} could not be drawn (${e instanceof Error ? e.message : String(e)}); ${block.fallback ? "showing its fallback image" : "showing a placeholder"}`); }
+  } else warnings.push(`notation ${block.src} not drawn (no notation renderer given); ${block.fallback ? "showing its fallback image" : "showing a placeholder"}`);
+
+  const above: LaidNotation["above"] = [];
+  let x = P.content.left;
+  if (block.instrument) {
+    const runs: Run[] = [{ kind: "text", text: block.instrument, size: P.notation.instrumentSize, face: "arialItalic", fill: P.colors.ink }];
+    above.push({ x, runs });
+    x += runsWidth(runs) + P.spacing.itemGap;
+  }
+  if (render && block.above?.length) {
+    const axis = notationAxis(render);
+    const barStart = (bar: number) => render!.bars.slice(0, bar - 1).reduce((s, b) => s + b.beats, 0);
+    const anchors = [...block.above].sort((a, b) => a.bar - b.bar || (beatOffset(a.beat) ?? 0) - (beatOffset(b.beat) ?? 0));
+    for (const a of anchors) {
+      const off = beatOffset(a.beat);
+      if (off === undefined) warnings.push(`notation ${block.src}: beat "${a.beat}" is not a single beat; placed on beat 1`);
+      const at = P.content.left + axis(barStart(a.bar) + (off ?? 0));
+      const { runs, beatPoint } = groupRuns(a.items);
+      const gx = Math.max(at - (beatPoint ?? 0), x);
+      above.push({ x: gx, runs });
+      x = gx + runsWidth(runs) + P.spacing.groupGap;
+    }
+  } else if (!render && block.above?.length) warnings.push(`notation ${block.src}: chord names need the notation to be drawn; left out`);
+  return { ...(render ? { render } : {}), above, hasRow: above.length > 0 };
+}
+
 /** Lays out a section's blocks; `meter` carries inline meter changes from line to line. */
-function layoutBlocks(blocks: Block[], meter: { current: Meter }): LaidBlock[] {
+function layoutBlocks(blocks: Block[], meter: { current: Meter }, draw: RenderChartOptions["notation"], warnings: string[], language: string | undefined): LaidBlock[] {
+  const laid: LaidBlock[] = [];
   return blocks.map((block, i) => {
-    if (block.kind !== "line") return { block };
+    if (block.kind === "notation") { const b = { block, notation: layoutNotation(block, draw, warnings) }; laid[i] = b; return b; }
+    if (block.kind !== "line") { laid[i] = { block }; return laid[i]!; }
     const prev = blocks[i - 1];
-    const axis = prev?.kind === "snippet" ? snippetAxis(prev, meter.current) : undefined;
-    const rows = fitLine(block, axis ? { meter: meter.current, axis } : { meter: meter.current });
+    const prevRender = laid[i - 1]?.notation?.render;
+    const axis = prev?.kind === "snippet" ? snippetAxis(prev, meter.current)
+      : prevRender ? ((ax) => (t: number) => P.content.left + ax(t))(notationAxis(prevRender)) : undefined;
+    const lang = language !== undefined ? { language } : {};
+    const rows = fitLine(block, axis ? { meter: meter.current, axis, ...lang } : { meter: meter.current, ...lang });
     meter.current = lineTiming(block, meter.current).endMeter;
-    return { block, rows };
+    laid[i] = { block, rows };
+    return laid[i]!;
   });
 }
 
@@ -132,6 +189,16 @@ function placedSvg(line: { x: number; runs: Run[] }[], baseline: number): string
 /** SVG for one block whose rows start at `top`. */
 function blockSvg(b: LaidBlock, top: number, colors: RepeatColors, V: Vertical): string {
   const { block } = b;
+  if (block.kind === "notation") {
+    const n = b.notation!;
+    let svg = n.above.map((p) => runsToSvg(p.runs, p.x, top + V.baseline).svg).join("");
+    const y = top + (n.hasRow ? V.rowHeight : 0);
+    if (n.render) svg += `<g transform="translate(${fmt(P.content.left)} ${fmt(y)})">${n.render.svg}</g>`;
+    else if (block.fallback) svg += `<image href="${esc(block.fallback.src)}" x="${fmt(P.content.left)}" y="${fmt(y)}" width="${fmt(block.fallback.width)}" height="${fmt(block.fallback.height)}" preserveAspectRatio="none"/>`;
+    else svg += `<rect x="${fmt(P.content.left)}" y="${fmt(y)}" width="${fmt(P.content.right - P.content.left)}" height="${fmt(P.notation.placeholderHeight)}" fill="none" stroke="${P.colors.rule}" stroke-dasharray="4 3"/>` +
+      runsToSvg([{ kind: "text", text: `notation: ${block.src}`, size: P.marks.smallSize, face: "arialItalic", fill: P.colors.lyric }], P.content.left + 6, y + P.notation.placeholderHeight / 2 + 4).svg;
+    return svg;
+  }
   if (block.kind === "snippet") {
     let svg = `<image href="${esc(block.src)}" x="${fmt(P.content.left)}" y="${fmt(top)}" width="${fmt(block.width)}" height="${fmt(block.height)}" preserveAspectRatio="none"/>`;
     for (const o of block.overlay ?? []) {
@@ -187,7 +254,7 @@ export function renderChart(chart: Chart, options: RenderChartOptions = {}): Ren
   const colors = repeatColors(chart, warnings);
   const meter = { current: chart.meta.meter ?? DEFAULT_METER };
   const laid = chart.sections.map((section) => {
-    const blocks = layoutBlocks(section.blocks, meter);
+    const blocks = layoutBlocks(section.blocks, meter, options.notation, warnings, chart.meta.language);
     for (const b of blocks) for (const r of b.rows ?? []) for (const w of r.warnings) warnings.push(`${section.label || section.type}: ${w}`);
     return blocks;
   });
