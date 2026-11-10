@@ -64,7 +64,7 @@ Superscripts checked in resvg (test) and headless Chrome
 ## Housekeeping
 
 - `samples/` is flat, not in the subfolders listed in CLAUDE.md §3. Missing: the 24K Magic cover image, the Legend image, `A Dios Le Pido.docx`. Extra: `All I Wanted - Paramore (2009).docx`.
-- `diagram-generator.html` (earlier browser prototype) is superseded by `src/diagram/render.ts`; left in place.
+- `diagram-generator.html` is generated (`npm run diagram-generator`): the real renderer bundled into one page with the four samples and a voicing editor. The earlier hand-written prototype had its own renderer, which drifted (letter "b" for flats, clipped superscript "m"); rebuild the page after renderer changes.
 - `src/diagram/metrics.ts` is generated: `npx tsx scripts/gen-metrics.ts`. Fixtures are regenerated with `npx tsx scripts/import-samples.ts --write` (check the diff by hand).
 
 # Chart renderer (phase 1): notes
@@ -235,3 +235,47 @@ The four Word cover templates in `samples/` were exported to PDF with Word (read
 - Courier/Calibri look-alikes, logo shadow, header bar height, last-row alignment, Legend rule color: check against the filled covers when they arrive.
 - Do "(m)5" and "5(m)" mean a power chord? (aliased to "5" for now.)
 - Does a bass change ("/E" with no chord) need its own diagram? Each one gets one now ("C/E").
+
+# Chart text format
+
+Started 2026-11-09 (CLAUDE.md §2 item 4). What authors type in the editor; parsed by `src/text-format/parse.ts`, written by `src/text-format/write.ts` (so imported charts open as text). Owner decision (2026-11-09): **chords over lyrics**, as on the printed chart. Every symbol below is a proposal until the owner signs off. (verify)
+
+## Lines
+
+- **Header** (before the first section): `Title:`, `Artist:`, `Year:`, `Key:`, `Original key:`, `BPM:`, `Meter:` (`4/4`), `Tuning:`, `Language:`, `Date:`.
+- **Section**: `# label`. The type comes from the label via `rules.sections.types`; `# label =bridge` sets it. `#` alone is an unlabeled section.
+- **Chord line** over a **lyric line**, optionally followed by a **rhythm line**. A chord-only line is a chord line with no lyric under it.
+- **Repeat line**: a line starting with `Repeat` (or `> ` for any other full-width note). `{Chorus}` links to a section: the latest earlier section labelled "Chorus", else by type. `{1st Verse|1st Ver}` prints "1st Verse" and links the section labelled "1st Ver"; `=type` overrides the type. A Repeat line right after a blank line starts its own unlabeled section, like the importer's output.
+- **Fenced JSON** (` ```json `): a block the text can't express yet (notation images, notation blocks with chord names), or `{"cover": ...}` / `{"meta": ...}`. The writer falls back to this for any block that would not read back identically, so text <-> JSON never loses anything.
+
+## Placing chords
+
+- A group is a run of characters with no spaces (outside `()`, `[]`, `""`); it becomes one anchor. The column of its **first chord's root letter** is matched to the lyric character under it; bar lines and other marks before the chord hang to the left, as printed. A group without a chord is placed by its first character.
+- Lyric padding: `~` and extra spaces after a space are not printed; a chord over padding belongs to the next character. In a run of spaces the first is the real one. This lets authors make room for long chord names and for several groups on one syllable.
+- Groups past the end of the lyric keep their order (the renderer puts them on the tab grid or at their time).
+- `<G` = just before the syllable (`place: "before"`), `>G` = just after the previous one, `>>(simile)` = right margin.
+- `@2 ` at the start of a lyric line: the lyric comes in on beat 2 (`lyricEntry`). A rhythm line holds beat tags (`2`, `3&`, `2:1` = bar 2 beat 1) under the syllables they time (`rhythm` marks).
+- Lyric styles: `_backup_` (italic), `^aside^`, `^^upright aside^^`. Inline marks in a lyric: `{2.`, `}`, or one mark in braces such as `{(2x)}`. Escape `\ { } _ ^ ~` with a backslash.
+- A line that looks like a chord line but is a lyric ("A girl"): start it with `. `. A chord line with only free text: start it with `! `.
+
+## Marks
+
+`|` bar, `|-` same chord another bar, chord names as in `parseChordName` (`Bbm7/C`, `G7(b9)/F`, `E(m)5`, `♭`/`♯` accepted), `F_b5` for a quality starting with b/# (F with ♭5, not F♭ 5), `*G` gray chord (no bass), `(G)` chord in parentheses, `[2&]` beat tag after a chord or mark, `/E` new bass only, `(+Drm)` `(-Gtr)` `(⊕Gtr)` `(⊗Snr)` instruments, `//` abrupt stop and `!!` stop and hold (beats after, or before as `[4]//`), `@1` riff reference (`@1'` second riff colour; ① also accepted), `3/4` meter, `↓`, `{2.` and `}` repeat endings, `(2x)`, `Vamp`, `dstrn`, `1/2T`, `(NC)`, `(simile)`, `(ritard)`, `"text"` unparenthesized text, any other `(words)` free text. `;` separates two marks that would otherwise run together (e.g. a chord and a `/E` bass change).
+
+## Checks
+
+- `test/text-format.test.ts`: syntax cases with made-up lyrics; the demo and notation-demo charts round-trip exactly (canonical form, `src/text-format/canonical.ts`) and the parsed demo renders the same SVG pages; the local imported charts round-trip too (skipped without them). On "Since U Been Gone", only the 6 notation-image blocks stay as JSON.
+- Canonical form drops what the renderer can't see: merged lyric pieces, collapsed double spaces, `place: "on"`, `bar: 1`, `riff: 1`, and exact positions of groups past the lyric's end.
+
+## Editor (phase 1)
+
+- `chart-editor.html`, built by `npm run editor` (`scripts/build-editor.ts`, entry `scripts/lib/editor-entry.ts`): one self-contained page, no server. Fonts (Arimo, Carlito, TeX Gyre Cursor) are embedded because Chrome blocks fonts from `file://`; about 7 MB, so it is gitignored.
+- The renderer runs unchanged in the browser: the bundle swaps `node:fs` (cover logo, Bravura) and `node:module` (hyphenation patterns) for stand-ins in `scripts/lib/browser/`. German patterns (730 KB) are left out of the page; German lyrics fall back to the built-in syllable rule there.
+- The preview redraws 250 ms after typing stops (about 30-40 ms for the demo); if drawing fails, the last good pages stay up.
+- PDF: the browser's Print to PDF (`@page` Letter, no margins), cover first. Text stays text (selectable), unlike the 300 dpi images of `scripts/render-chart.ts`.
+
+## Open questions (editor)
+
+- Watermark for PDF export (text, placement, who sees which version): not specified, so not added.
+- Symbol choices above (`<`/`>`, `!!`, `@1'`, `*`, `_`, `^`): proposals to confirm.
+- Notation blocks are kept as JSON in the text for now; a short directive syntax (`!notation riff.musicxml bars=1-2 ...`) could come next.

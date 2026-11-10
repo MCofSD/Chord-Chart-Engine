@@ -12,7 +12,7 @@ Musicians' Club publishes about 400 "gig-ready" chord charts as PDFs. Today each
 | Chart renderer (chords over lyrics, bars, beat tags, notation snippets) | Renders chart data to SVG pages, with rhythm spacing and 2-page fitting |
 | Native notation (MusicXML in, tab/standard out; MIDI and picture input) | Drawing done; MIDI and picture input next |
 | Cover pages (layout solver, 4 to 8 columns, 1 or 2 pages; Legend; voicing library) | Working; starter voicing library awaiting review ([details](#cover-pages)) |
-| Text editor with live preview, PDF export | Not started |
+| Text editor with live preview, PDF export | Phase 1 working: chart text format, local editor page, Print to PDF ([how to use it](#chart-editor)). Watermark not specified yet |
 | Importer for existing charts and covers | Chart PDFs: working, with a review step ([how to use it](#importing-a-chart-pdf)). Covers: not started |
 | Library, search, contributor review workflow | Not started |
 
@@ -20,24 +20,112 @@ Measurements, decisions, and known differences from the originals are recorded i
 
 ## Quick look, no install needed
 
-Open [diagram-generator.html](diagram-generator.html) in a browser. It draws the four sample chord diagrams from data and lets you edit a voicing and watch the diagram update. It loads the Arimo font from Google Fonts, so it needs an internet connection.
+Open [diagram-generator.html](diagram-generator.html) in a browser. It draws the four sample chord diagrams from data and lets you edit a voicing and watch the diagram update. It uses the same renderer as the cover pages (`src/diagram/render.ts`, bundled into the page); after changing the renderer, rebuild it with `npm run diagram-generator`. It loads the Arimo font from Google Fonts, so it needs an internet connection.
 
 ## Getting started
 
-Requires [Node.js](https://nodejs.org) 22 or newer.
+These steps take you from a new computer to the chart editor running. Commands are typed in a terminal: on Windows, **PowerShell** or **Git Bash** (both work); on macOS, **Terminal**.
+
+### 1. Install the tools
+
+- **Node.js 22 or newer.** Download the **LTS** installer from [nodejs.org](https://nodejs.org) and run it with the default options. It includes npm, the tool that installs the project's packages.
+- **Git.** Download it from [git-scm.com](https://git-scm.com) and install it with the default options. (On macOS, running `git --version` offers to install it.)
+
+Close and reopen the terminal, then check that both are found:
 
 ```sh
-npm install
+node -v
+npm -v
+git --version
 ```
+
+`node -v` should print `v22` or higher.
+
+### 2. Get the code
+
+```sh
+git clone https://github.com/MCofSD/Chord-Chart-Engine.git
+cd Chord-Chart-Engine
+```
+
+The project is now in a folder named `Chord-Chart-Engine`. Run all the commands below from inside that folder. (Without Git, you can use **Code > Download ZIP** on GitHub and unzip it, but then `git pull` won't work for updates.)
+
+### 3. Install the packages
+
+```sh
+npm ci
+```
+
+This installs the exact package versions the project was tested with (listed in `package-lock.json`) into a `node_modules` folder. It takes a minute or two. You may see a warning like `install-scripts … esbuild … not yet covered by allowScripts`: it is expected and harmless.
+
+### 4. Check that everything works
+
+```sh
+npm test
+npm run typecheck
+```
+
+`npm test` should end with a line like `Tests  181 passed | 8 skipped`. The skipped tests need the owner's local song files (step 6), so skips are normal. `npm run typecheck` prints nothing after its first lines when all is well.
+
+### 5. Open the chart editor
+
+```sh
+npm run editor
+```
+
+This builds `chart-editor.html` in the project folder. Double-click it, or drag it into Chrome or Edge. It opens with an example chart; see [Chart editor](#chart-editor) for how to use it.
+
+### 6. Optional: the owner's local song files
+
+The real song charts (PDF and Word) and anything imported from them contain copyrighted lyrics, so they are **not in this repository**, which is public. To run the comparison tests, preview sections, and the importer on real charts, ask the owner for copies:
+
+- Put the chart PDFs and Word files in `samples/`.
+- Imported charts go to `local/` (the importer does this for you).
+
+Both locations are listed in `.gitignore`. **Never commit song files or lyrics.** Before committing, run `git status` and check that no song files appear.
+
+### Staying up to date
+
+```sh
+git pull
+npm ci
+npm run editor
+```
+
+`npm ci` is only needed when `package-lock.json` changed, but running it again is harmless. Rebuild the editor after every pull, since `chart-editor.html` isn't in the repository. If the diagram code changed, also run `npm run diagram-generator`.
+
+### Troubleshooting
+
+- **PowerShell says "running scripts is disabled on this system" (`npm.ps1 cannot be loaded`).** Run this once: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, answer `Y`, and try again. Or use Git Bash or Command Prompt instead.
+- **"node" or "npm" is not recognized.** Close and reopen the terminal after installing Node.js. If it still fails, run the installer again and keep "Add to PATH" selected.
+- **`npm ci` or `npm test` fails with syntax or engine errors.** Node.js is older than 22: install the current LTS from [nodejs.org](https://nodejs.org).
+- **The editor says "images not added yet".** The chart uses notation images or MusicXML files. Click **Add files…** and pick them (for imported charts they are in the chart's folder under `local/imports/`).
+- **The editor is missing or out of date.** Run `npm run editor` again.
+
+### Commands
 
 | Command | What it does |
 |---|---|
 | `npm run preview` | Builds `preview/index.html`: the sample diagrams at cover scales (100%, 65%, 60%) next to the Corel originals, plus a demo chart. Open the file in a browser. |
+| `npm run editor` | Builds `chart-editor.html`, the chart text editor with live preview (see [Chart editor](#chart-editor)). |
+| `npm run chart-to-text -- <chart.json>` | Writes a chart JSON (e.g. from the PDF importer) as chart text for the editor; given a `.txt`, does the reverse. |
+| `npm run diagram-generator` | Rebuilds `diagram-generator.html` from the current renderer. Run it after changing anything in `src/diagram/`. |
 | `npm test` | Runs all tests: importer golden files, renderer unit tests, and pixel comparisons against the originals. |
 | `npm run typecheck` | Type-checks the code without building. |
 | `npx tsx scripts/render-chart.ts <chart.json> [outDir] [--no-cover]` | Renders a chart file to a printable PDF (cover pages first), one PNG per page, and one SVG per page (default output: `preview/charts/`). |
 | `npx tsx scripts/import-samples.ts` | Converts the Corel sample SVGs to voicing JSON and prints it. Add `--write` to update the test fixtures. |
 | `npm run import-chart -- "<chart.pdf>" [outDir]` | Converts a legacy chart PDF to chart JSON, plus a PDF, page PNGs, and comparison PNGs of the result. See [Importing a chart PDF](#importing-a-chart-pdf). |
+
+## Chart editor
+
+After [setting up](#getting-started), run `npm run editor`, then open `chart-editor.html` in Chrome or Edge. It is self-contained (about 7 MB with the fonts) and works offline. It is not committed, so rebuild it after pulling changes. Type the chart on the left; the cover and chart pages update on the right as they will print.
+
+- **Open…** reads a chart text file, or a chart JSON (for example one made by the PDF importer), which is turned into text.
+- **Add files…** adds the notation images and MusicXML files a chart refers to.
+- **Save** writes the chart text (Ctrl+S). The draft is also kept in the browser between visits.
+- **Print / Save as PDF** prints the cover and chart pages on US Letter; choose "Save as PDF" in the print dialog, margins "None".
+- The **Problems** list shows lines the editor can't read (click one to jump to the line) and layout warnings.
+- **How to write a chart** (under the problems) lists every symbol. The format is described in [NOTES.md](NOTES.md#chart-text-format).
 
 ## Importing a chart PDF
 

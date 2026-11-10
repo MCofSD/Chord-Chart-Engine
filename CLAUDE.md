@@ -42,6 +42,8 @@ Status (2026-11-09, later): native notation phase 1 done: `notation` blocks (Mus
 
 Status (2026-11-09): rhythm spacing done (NOTES.md). Item 5 started at the owner's request: a PDF chart importer (`src/importers/pdf-chart/`, `npm run import-chart`). **All formatting rules live in `rules/chart-rules.json`**, read by both the renderer and the importer; a rule change must need no code change in either (owner). Put new rules there, not in code.
 
+Status (2026-11-09, latest): item 4 phase 1 done: chart text format (chords over lyrics; `src/text-format/`, spec in NOTES.md, symbols awaiting owner review) and a self-contained editor page with live preview and Print to PDF (`npm run editor` builds `chart-editor.html`, gitignored). Watermark not specified yet.
+
 ## 3. Sample files (ground truth)
 
 Put these under `samples/` (copy from the project owner; do not modify them):

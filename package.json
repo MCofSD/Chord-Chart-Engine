@@ -9,7 +9,10 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "preview": "tsx scripts/build-preview.ts",
-    "import-chart": "tsx scripts/import-chart.ts"
+    "import-chart": "tsx scripts/import-chart.ts",
+    "diagram-generator": "tsx scripts/build-diagram-generator.ts",
+    "chart-to-text": "tsx scripts/chart-to-text.ts",
+    "editor": "tsx scripts/build-editor.ts"
   },
   "engines": {
     "node": ">=22"
@@ -22,6 +25,7 @@
     "@types/opentype.js": "1.3.10",
     "@types/pngjs": "^6.0.5",
     "ajv": "^8.20.0",
+    "esbuild": "0.28.2",
     "fast-xml-parser": "^5.12.0",
     "hyphen": "1.14.1",
     "mupdf": "^1.28.1",
