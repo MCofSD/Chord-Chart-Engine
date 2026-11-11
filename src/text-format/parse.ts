@@ -16,6 +16,17 @@ export interface Problem {
 export interface ParseResult {
   chart: Chart;
   problems: Problem[];
+  /** Where each chords-and-lyric block came from, for editing the text from the page. */
+  sources: LineSource[];
+}
+
+/** The text lines (1-based) a line block was read from. */
+export interface LineSource {
+  section: number;
+  block: number;
+  chord?: number;
+  lyric?: number;
+  rhythm?: number;
 }
 
 export const SECTION_TYPES: readonly SectionType[] = ["intro", "verse", "prechorus", "refrain", "chorus", "bridge", "break", "solo", "interlude", "outro", "ending", "other"];
@@ -220,6 +231,7 @@ function expandTabs(line: string): string {
 
 export function parseChartText(src: string): ParseResult {
   const problems: Problem[] = [];
+  const sources: LineSource[] = [];
   const problem = (line: number, message: string) => problems.push({ line, message });
   const raw = src.replace(/^﻿/, "").replace(/\r\n?/g, "\n").split("\n");
   const lines = raw.map((l, k) => {
@@ -315,11 +327,16 @@ export function parseChartText(src: string): ParseResult {
       i++;
     }
     if (lyric && lines[i] !== undefined && isRhythmLine(lines[i]!)) { rhythm = { line: lines[i]!, no: i + 1 }; i++; }
+    const src: LineSource = { section: chart.sections.indexOf(section), block: section.blocks.length };
+    if (chord) src.chord = chord.no;
+    if (lyric) src.lyric = lyric.no;
+    if (rhythm) src.rhythm = rhythm.no;
+    sources.push(src);
     section.blocks.push(buildLine(chord, lyric, rhythm, problem));
     afterBlank = false;
   }
   if (meta.title === undefined) { problem(1, "add a Title: line at the top"); meta.title = ""; }
   if (meta.artist === undefined) meta.artist = "";
   if (meta.key === undefined) { problem(1, "add a Key: line at the top, e.g. Key: G"); meta.key = ""; }
-  return { chart, problems };
+  return { chart, problems, sources };
 }

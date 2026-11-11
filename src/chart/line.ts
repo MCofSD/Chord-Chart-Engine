@@ -14,7 +14,12 @@ import { syllableStarts } from "../text/syllables.js";
 import { runsWidth, type Run } from "./runs.js";
 import { CHART } from "./tokens.js";
 
-export interface Placed { x: number; runs: Run[] }
+export interface Placed {
+  x: number;
+  runs: Run[];
+  /** Lyric text pieces: the characters [from, to) of the whole line's lyric they show (for clicking on the page). */
+  chars?: [number, number];
+}
 
 export interface LaidLine {
   chords: Placed[];
@@ -95,7 +100,7 @@ export function layoutLine(block: LineBlock, opts: LineOptions = {}): LaidLine {
       const take = Math.min(remaining, target - charIdx);
       if (take > 0) {
         const run = lyricRun(piece.text.slice(off, off + take), piece.style);
-        lyrics.push({ x: lyricX, runs: [run] });
+        lyrics.push({ x: lyricX, runs: [run], chars: [charIdx, charIdx + take] });
         lyricX += runsWidth([run]);
         off += take; charIdx += take;
       }
@@ -311,7 +316,7 @@ export function fitLine(block: LineBlock, opts: FitOptions = {}): LaidLine[] {
     const starts = evenBarStarts(n, k);
     if (starts.some((b) => !timing.bars[b]!.clean)) continue; // a row must start at a group's bar line
     const rows = splitLine(block, timing, starts);
-    const layRows = (fr: number) => rows.map((r) => layoutLine(r.block, { left, right, meter: r.meter, beatWidth: full * fr, ...lang }));
+    const layRows = (fr: number) => rows.map((r) => offsetChars(layoutLine(r.block, { left, right, meter: r.meter, beatWidth: full * fr, ...lang }), r.offset));
     const fr = bestFactor(layRows, right);
     if (fr !== undefined) return layRows(fr);
     const tightRows = layRows(0);
@@ -319,6 +324,12 @@ export function fitLine(block: LineBlock, opts: FitOptions = {}): LaidLine[] {
     if (tightRows.every((r) => r.scaleX >= CHART.narrowScale)) return tightRows;
   }
   return fallback;
+}
+
+/** A wrapped row's lyric characters, counted from the start of the whole line. */
+function offsetChars(laid: LaidLine, offset: number): LaidLine {
+  if (offset) for (const p of laid.lyrics) if (p.chars) p.chars = [p.chars[0] + offset, p.chars[1] + offset];
+  return laid;
 }
 
 /** Largest factor in [0, 1] at which every laid row fits within `right`, or undefined if even 0 doesn't. */
@@ -348,7 +359,7 @@ export function evenBarStarts(n: number, k: number): number[] {
  * pickup before the first bar). Lyric text splits at the character the bar's
  * group is pinned to, with a hyphen when that falls inside a word.
  */
-export function splitLine(block: LineBlock, timing: LineTiming, barStarts: number[]): { block: LineBlock; meter: Meter }[] {
+export function splitLine(block: LineBlock, timing: LineTiming, barStarts: number[]): { block: LineBlock; meter: Meter; offset: number }[] {
   const text = block.lyrics.map((p) => ("text" in p ? p.text : "")).join("");
   const { anchors, bars } = timing;
   const firstAnchor = barStarts.map((b, i) => (i === 0 ? 0 : bars[b]!.anchor));
@@ -389,6 +400,6 @@ export function splitLine(block: LineBlock, timing: LineTiming, barStarts: numbe
       .map((m) => ({ ...m, at: m.at - a, bar: (m.bar ?? 1) - barsBefore }));
     if (rhythm.length) row.rhythm = rhythm;
     if (i === 0 && block.lyricEntry !== undefined) row.lyricEntry = block.lyricEntry;
-    return { block: row, meter: meterAt(b) };
+    return { block: row, meter: meterAt(b), offset: a };
   });
 }

@@ -125,6 +125,8 @@ After [setting up](#getting-started), run `npm run editor`, then open `chart-edi
 - **Save** writes the chart text (Ctrl+S). The draft is also kept in the browser between visits.
 - **Print / Save as PDF** prints the cover and chart pages on US Letter; choose "Save as PDF" in the print dialog, margins "None".
 - The **Problems** list shows lines the editor can't read (click one to jump to the line) and layout warnings.
+- **Click a syllable on the page** to add, change or remove its chord. A small menu opens with the chord already there (if any): type the chord as you would in a chord line (`G`, `|Am7[2&]`), choose **Before**, **On** or **After** the syllable, then **Apply** (or Enter). **Remove** takes the chord off. The edit is made in the text on the left, so Ctrl+Z undoes it.
+- **Chords follow their syllables** (the checkbox in the header, on by default): when you type more words into a lyric line, delete some, or make a chord name longer, every chord stays on the syllable it was on. The chord line is re-spaced for you, and the lyric opens a little room (`~` or a space) where a longer name would run into the next chord. Turn it off to line chords up by hand.
 - **How to write a chart** (under the problems) lists every symbol. The format is described in [NOTES.md](NOTES.md#chart-text-format).
 
 ## Importing a chart PDF

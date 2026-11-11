@@ -189,7 +189,8 @@ function readsBack(lines: string[], block: Block, before: readonly Section[]): b
   return stableJson(canonicalBlock(sec.blocks[0]!)) === stableJson(canonicalBlock(block));
 }
 
-function blockLines(block: Block, before: readonly Section[]): string[] {
+/** The text lines for one block (chord, lyric and rhythm lines for a line block). */
+export function blockLines(block: Block, before: readonly Section[]): string[] {
   if (block.kind === "line") {
     for (const [fc, fl] of [[false, false], [false, true], [true, false], [true, true]] as const) {
       const l = layoutLine(block, fc, fl);

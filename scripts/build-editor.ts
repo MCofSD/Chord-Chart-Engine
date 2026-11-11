@@ -91,14 +91,30 @@ details{font-size:13px;margin-top:8px}
 details code{font:12px "TeX Gyre Cursor",ui-monospace,monospace}
 details table{border-collapse:collapse}
 details td{padding:2px 10px 2px 0;vertical-align:top}
-.preview{overflow:auto;padding:16px;min-height:0}
+.preview{overflow:auto;padding:16px;min-height:0;position:relative}
+.follow{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--mut)}
+#pages g[data-lyric]{cursor:pointer}
+@media screen{#pages g[data-lyric]:hover text{fill:#1b4f8c}}
+.syl-hl{fill:#ffe48a}
+#chord-menu{position:absolute;z-index:5;width:250px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.25);padding:10px 12px}
+#chord-menu .menu-head{margin:0 0 8px;font-size:14px}
+#chord-where{color:var(--mut);font-size:12px}
+#chord-menu label{display:block;font-size:12px;color:var(--mut)}
+#chord-input{width:100%;font:16px Arimo,Arial,sans-serif;padding:5px 8px;margin:2px 0 8px;border:1px solid var(--line);border-radius:4px;background:var(--card);color:var(--fg)}
+.places{display:flex;gap:4px}
+.places button{flex:1;padding:4px 6px}
+.places button[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);color:#fff}
+#chord-error{color:var(--bad);font-size:12px;margin:6px 0 0;min-height:0}
+#chord-error:empty{display:none}
+.menu-actions{display:flex;gap:6px;margin-top:10px}
+.menu-actions button{padding:4px 10px}
 #pages{display:flex;flex-direction:column;gap:16px;align-items:center}
 .page{width:100%;max-width:816px;aspect-ratio:8.5/11;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.25)}
 .page svg{display:block}
 @media (max-width:900px){main{grid-template-columns:1fr;grid-template-rows:auto auto}.edit{border-right:0;border-bottom:1px solid var(--line)}textarea{min-height:50vh}.preview{overflow:visible}}
 @page{size:letter;margin:0}
 @media print{
-  header,.edit{display:none}
+  header,.edit,#chord-menu,.syl-hl{display:none}
   body,html{display:block;height:auto;background:#fff}
   main{display:block}
   .preview{padding:0;overflow:visible}
@@ -115,6 +131,7 @@ details td{padding:2px 10px 2px 0;vertical-align:top}
 <button type="button" id="open">Open…</button>
 <button type="button" id="add">Add files…</button>
 <button type="button" id="save">Save</button>
+<label class="follow"><input type="checkbox" id="follow" checked> Chords follow their syllables</label>
 <button type="button" id="print" class="primary">Print / Save as PDF</button>
 <input type="file" id="open-input" accept=".txt,.json" hidden>
 <input type="file" id="files-input" accept=".png,.jpg,.jpeg,.musicxml,.xml,.mxl" multiple hidden>
@@ -135,6 +152,7 @@ details td{padding:2px 10px 2px 0;vertical-align:top}
 <tr><td>chord line</td><td>Chords sit over the lyric line below. A chord's letter goes over the syllable it lands on; a bar line just before it.</td></tr>
 <tr><td><code>|G  Bbm7/C[2&amp;]</code></td><td>Bar line, chords, beat tag in [ ].</td></tr>
 <tr><td><code>&lt;G</code> <code>&gt;G</code></td><td>Played just before / just after the syllable.</td></tr>
+<tr><td>click a syllable</td><td>On the page: add, change or remove its chord, placed before, on or after it. With "Chords follow their syllables" on, typing more words or longer chord names keeps every chord on its syllable.</td></tr>
 <tr><td><code>*G</code> <code>(G)</code></td><td>Gray chord (no bass); chord in parentheses.</td></tr>
 <tr><td><code>F_b5</code></td><td>Quality that starts with b or #: F with ♭5 (not F♭5).</td></tr>
 <tr><td><code>(+Drm)[4]</code> <code>(-Gtr)</code> <code>(⊕Gtr)</code> <code>(⊗Snr)</code></td><td>Instrument in, out, only, except.</td></tr>
@@ -155,7 +173,24 @@ details td{padding:2px 10px 2px 0;vertical-align:top}
 </details>
 </div>
 </section>
-<section class="preview" aria-label="Preview"><div id="pages"></div></section>
+<section class="preview" id="preview" aria-label="Preview"><div id="pages"></div>
+<div id="chord-menu" role="dialog" aria-label="Chord on this syllable" hidden>
+<p class="menu-head"><strong id="chord-syllable"></strong> <span id="chord-where"></span></p>
+<label for="chord-input">Chord</label>
+<input id="chord-input" autocomplete="off" spellcheck="false" placeholder="G, |Am7[2&amp;]">
+<div class="places" role="group" aria-label="Placement">
+<button type="button" data-place="before" aria-pressed="false">Before</button>
+<button type="button" data-place="on" aria-pressed="true">On</button>
+<button type="button" data-place="after" aria-pressed="false">After</button>
+</div>
+<p id="chord-error" role="alert"></p>
+<div class="menu-actions">
+<button type="button" id="chord-apply" class="primary">Apply</button>
+<button type="button" id="chord-remove">Remove</button>
+<button type="button" id="chord-cancel">Cancel</button>
+</div>
+</div>
+</section>
 </main>
 <script>${js}</script>
 </body>

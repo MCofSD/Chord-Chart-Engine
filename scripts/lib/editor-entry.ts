@@ -10,6 +10,10 @@ import { CHART } from "../../src/chart/tokens.js";
 import type { Chart, NotationBlock } from "../../src/model/chart.js";
 import { renderNotation, type NotationRender } from "../../src/notation/render.js";
 import { parseChartText, writeChartText, type Problem } from "../../src/text-format/index.js";
+import { lyricText } from "../../src/text-format/canonical.js";
+import { chordAt, setChordAt, type ChordTarget, type Place } from "../../src/text-format/edit.js";
+import { relink } from "../../src/text-format/link.js";
+import { syllableAt } from "../../src/text/syllables.js";
 import demo from "../../test/fixtures/charts/demo.json" with { type: "json" };
 
 const DRAFT_KEY = "chart-editor:draft";
@@ -22,6 +26,11 @@ const statusEl = $("status");
 /** Files the author added (notation images, MusicXML), by file name. */
 const files = new Map<string, { bytes: Uint8Array; url: string }>();
 let fileName = "chart.chart.txt";
+/** The chart as last drawn (for clicks on the page). */
+let shown: Chart | undefined;
+/** The text as it last read cleanly: what "chords follow their syllables" compares each edit with. */
+let baseline = "";
+const FOLLOW_KEY = "chart-editor:follow";
 let saveHandle: FileSystemFileHandle | undefined;
 
 /** The starting chart: the made-up demo, without its intro (a notation image the page doesn't have). */
@@ -64,13 +73,15 @@ function render(): void {
   const t0 = performance.now();
   const { chart, problems } = parseChartText(text.value);
   try {
-    const body = renderChart(chart, { notation });
+    const body = renderChart(chart, { notation, annotate: true });
     const cover = renderCover(chart);
     const missing = new Set<string>();
     const pages = [...cover.pages, ...body.pages].map((svg) => linkImages(svg, missing));
     pagesEl.innerHTML = pages
       .map((svg, i) => `<div class="page" aria-label="Page ${i + 1} of ${pages.length}">${svg.replace('width="8.5in" height="11in"', 'width="100%" height="100%"')}</div>`)
       .join("");
+    shown = chart;
+    closeMenu();
     const warnings = [...cover.warnings, ...body.warnings];
     if (missing.size) warnings.unshift(`images not added yet: ${[...missing].join(", ")} (use "Add files")`);
     showProblems(problems, warnings);
@@ -102,6 +113,7 @@ function goToLine(line: number): void {
 
 function setText(value: string, name: string): void {
   text.value = value;
+  baseline = value;
   fileName = name;
   $("file-name").textContent = name;
   render();
@@ -154,8 +166,146 @@ async function addFiles(list: FileList): Promise<void> {
   render();
 }
 
+// ---- Chords follow their syllables -------------------------------------------
+
+const follow = $<HTMLInputElement>("follow");
+try { follow.checked = localStorage.getItem(FOLLOW_KEY) !== "off"; } catch { /* storage unavailable */ }
+follow.addEventListener("change", () => {
+  baseline = text.value;
+  try { localStorage.setItem(FOLLOW_KEY, follow.checked ? "on" : "off"); } catch { /* storage unavailable */ }
+});
+
+let replacing = false;
+/** Replaces the whole text as one undoable edit, keeping the scroll position. */
+function replaceText(value: string, selStart: number, selEnd = selStart): void {
+  const top = text.scrollTop;
+  replacing = true;
+  text.focus();
+  text.select();
+  // insertText keeps the browser's undo history (Ctrl+Z); fall back to a plain assignment.
+  if (!document.execCommand("insertText", false, value)) text.value = value;
+  replacing = false;
+  text.setSelectionRange(selStart, selEnd);
+  text.scrollTop = top;
+}
+
+text.addEventListener("input", (e) => {
+  if (replacing) return;
+  const kind = (e as InputEvent).inputType ?? "";
+  if (!follow.checked || kind.startsWith("history")) baseline = text.value;
+  else {
+    const r = relink(baseline, text.value, text.selectionStart);
+    if (r.kind === "applied") {
+      replaceText(r.text, r.caret);
+      baseline = r.text;
+    } else if (r.kind !== "wait") baseline = text.value;
+  }
+  schedule();
+});
+
+// ---- Click a syllable on the page -------------------------------------------------
+
+const menu = $("chord-menu");
+const menuInput = $<HTMLInputElement>("chord-input");
+const menuError = $("chord-error");
+let target: ChordTarget | undefined;
+let place: Place = "on";
+let highlight: SVGRectElement | undefined;
+
+function setPlace(p: Place): void {
+  place = p;
+  for (const b of Array.from(menu.querySelectorAll<HTMLButtonElement>("[data-place]"))) b.setAttribute("aria-pressed", String(b.dataset.place === p));
+}
+
+function closeMenu(): void {
+  menu.hidden = true;
+  target = undefined;
+  highlight?.remove();
+  highlight = undefined;
+}
+
+/** Character of a lyric <text> under the pointer (the nearest one when between letters). */
+function charAtPointer(el: SVGTextElement, e: MouseEvent): number {
+  const ctm = el.getScreenCTM();
+  if (!ctm) return 0;
+  const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
+  const n = el.getNumberOfChars();
+  for (let k = 0; k < n; k++) {
+    const r = el.getExtentOfChar(k);
+    if (p.x < r.x + r.width) return k;
+  }
+  return Math.max(0, n - 1);
+}
+
+pagesEl.addEventListener("click", (e) => {
+  const g = (e.target as Element).closest?.("g[data-lyric]");
+  const el = g?.querySelector("text");
+  if (!g || !el || !shown) { closeMenu(); return; }
+  const [si, bi, from] = g.getAttribute("data-lyric")!.split(":").map(Number) as [number, number, number];
+  const block = shown.sections[si]?.blocks[bi];
+  if (block?.kind !== "line") return;
+  const lyric = lyricText(block.lyrics);
+  const syl = syllableAt(lyric, from + charAtPointer(el, e), shown.meta.language);
+  if (!syl) return;
+  closeMenu();
+  target = { section: si, block: bi, syllable: syl };
+  // Highlight the syllable's letters in this piece.
+  const a = Math.max(0, syl.start - from), z = Math.min(el.getNumberOfChars(), syl.end - from);
+  if (z > a) {
+    const r0 = el.getExtentOfChar(a), r1 = el.getExtentOfChar(z - 1);
+    highlight = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    highlight.setAttribute("class", "syl-hl");
+    highlight.setAttribute("x", String(r0.x - 1));
+    highlight.setAttribute("y", String(r0.y));
+    highlight.setAttribute("width", String(r1.x + r1.width - r0.x + 2));
+    highlight.setAttribute("height", String(r0.height));
+    g.insertBefore(highlight, g.firstChild);
+  }
+  const existing = chordAt(text.value, target);
+  $("chord-syllable").textContent = `“${lyric.slice(syl.start, syl.end)}”`;
+  $("chord-where").textContent = shown.sections[si]!.label || `section ${si + 1}`;
+  menuInput.value = existing?.group ?? "";
+  setPlace(existing?.place ?? "on");
+  $("chord-remove").hidden = !existing;
+  menuError.textContent = "";
+  // Open just below the click, inside the preview.
+  const preview = $("preview");
+  const box = preview.getBoundingClientRect();
+  menu.hidden = false;
+  const left = Math.min(e.clientX - box.left + preview.scrollLeft - 20, preview.scrollLeft + preview.clientWidth - menu.offsetWidth - 8);
+  menu.style.left = `${Math.max(8, left)}px`;
+  menu.style.top = `${e.clientY - box.top + preview.scrollTop + 16}px`;
+  menuInput.focus();
+  menuInput.select();
+});
+
+function applyChord(remove: boolean): void {
+  if (!target) return;
+  const r = setChordAt(text.value, target, remove ? { place } : { group: menuInput.value, place });
+  if ("error" in r) { menuError.textContent = r.error; return; }
+  const lines = r.text.split("\n");
+  const start = lines.slice(0, r.from - 1).reduce((n, l) => n + l.length + 1, 0);
+  const end = lines.slice(0, r.to).reduce((n, l) => n + l.length + 1, 0) - 1;
+  closeMenu();
+  replaceText(r.text, start, end);
+  baseline = r.text;
+  render();
+}
+
+menu.addEventListener("click", (e) => {
+  const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button");
+  if (!b) return;
+  if (b.dataset.place) setPlace(b.dataset.place as Place);
+  else if (b.id === "chord-apply") applyChord(false);
+  else if (b.id === "chord-remove") applyChord(true);
+  else if (b.id === "chord-cancel") closeMenu();
+});
+menu.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { e.preventDefault(); closeMenu(); }
+  else if (e.key === "Enter" && e.target === menuInput) { e.preventDefault(); applyChord(false); }
+});
+
 // Wiring.
-text.addEventListener("input", schedule);
 text.addEventListener("keydown", (e) => {
   // Tab inserts spaces (chords line up by columns).
   if (e.key === "Tab" && !e.shiftKey && !e.ctrlKey && !e.metaKey) {

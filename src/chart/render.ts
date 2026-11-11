@@ -23,6 +23,12 @@ export interface RenderChartOptions {
    * their fallback image, or a placeholder.
    */
   notation?: (block: NotationBlock, width: number) => NotationRender;
+  /**
+   * For the editor: tag each lyric text piece with where it comes from,
+   * `<g data-lyric="section:block:from">`, so a click on the page can find the
+   * syllable. Off for printing and export.
+   */
+  annotate?: boolean;
 }
 
 export interface RenderedChart {
@@ -70,7 +76,7 @@ function sectionStyle(index: number, colors: RepeatColors): { fill: string; bold
 }
 
 /** A laid block; a line that wrapped has several rows, each a chord row and a lyric row. */
-interface LaidBlock { block: Block; rows?: LaidLine[]; notation?: LaidNotation }
+interface LaidBlock { block: Block; rows?: LaidLine[]; notation?: LaidNotation; /** "section:block" when annotating. */ source?: string }
 
 /** A drawn notation block: the notation, and its chord-name row (if any). */
 interface LaidNotation { render?: NotationRender; above: { x: number; runs: Run[] }[]; hasRow: boolean }
@@ -215,7 +221,15 @@ function blockSvg(b: LaidBlock, top: number, colors: RepeatColors, V: Vertical):
   for (const line of b.rows!) {
     let svg = "";
     if (line.chords.length) { svg += placedSvg(line.chords, y + V.baseline); y += V.rowHeight; }
-    if (line.lyrics.length) { svg += placedSvg(line.lyrics, y + V.baseline); y += V.rowHeight; }
+    if (line.lyrics.length) {
+      const src = b.source;
+      svg += src === undefined ? placedSvg(line.lyrics, y + V.baseline)
+        : line.lyrics.map((p) => {
+          const s = placedSvg([p], y + V.baseline);
+          return p.chars ? `<g data-lyric="${src}:${p.chars[0]}">${s}</g>` : s;
+        }).join("");
+      y += V.rowHeight;
+    }
     if (!line.chords.length && !line.lyrics.length) y += V.rowHeight;
     if (line.scaleX < 1) {
       const l = P.content.left;
@@ -253,8 +267,9 @@ export function renderChart(chart: Chart, options: RenderChartOptions = {}): Ren
   const warnings: string[] = [];
   const colors = repeatColors(chart, warnings);
   const meter = { current: chart.meta.meter ?? DEFAULT_METER };
-  const laid = chart.sections.map((section) => {
+  const laid = chart.sections.map((section, si) => {
     const blocks = layoutBlocks(section.blocks, meter, options.notation, warnings, chart.meta.language);
+    if (options.annotate) blocks.forEach((b, bi) => { if (b.rows) b.source = `${si}:${bi}`; });
     for (const b of blocks) for (const r of b.rows ?? []) for (const w of r.warnings) warnings.push(`${section.label || section.type}: ${w}`);
     return blocks;
   });

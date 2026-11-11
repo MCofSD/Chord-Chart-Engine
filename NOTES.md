@@ -276,6 +276,13 @@ Started 2026-11-09 (CLAUDE.md §2 item 4). What authors type in the editor; pars
 - The preview redraws 250 ms after typing stops (about 30-40 ms for the demo); if drawing fails, the last good pages stay up.
 - PDF: the browser's Print to PDF (`@page` Letter, no margins), cover first. Text stays text (selectable), unlike the 300 dpi images of `scripts/render-chart.ts`.
 
+## Click a syllable; chords follow their syllables (owner, 2026-11-10)
+
+- **Clicking:** the editor renders with `annotate: true`, which wraps each lyric text piece in `<g data-lyric="section:block:from">` (off for print and export, so those pages are unchanged). A click finds the character under the pointer, then its sung syllable (`syllableAt` in `src/text/syllables.ts`). The menu edits the chart through `setChordAt` (`src/text-format/edit.ts`): "On" and "Before" pin the chord to the syllable's first character, "After" pins it to the next syllable's first character with `place: "after"`. Only that line's chord, lyric and rhythm lines are rewritten (with the writer), and the result is read back and checked before the text changes. The box edits the whole group as typed (bar line, beat tag), and Remove removes the whole group.
+- **Following:** `relink` (`src/text-format/link.ts`) compares the text before and after each keystroke. For a lyric line it shifts every chord and rhythm mark with its character (a chord on deleted text goes to where the deletion was); for a chord line, the group being typed binds where it is and the others keep their characters. The caret decides where an edit happened when the text alone is ambiguous ("We " typed before "Walking"). It first re-spaces only the chord and rhythm lines; if chords would collide it lets the writer lay the line out again, padding the lyric. A half-typed chord waits until it reads; pastes and Enter are left alone. Each re-spacing is its own undo step.
+- Limits: only lyric syllables are clickable (chord-only lines and notation are typed); applying from the menu re-spaces that line in the standard way, so hand padding on it may change.
+- Checked in headless Chrome: click opens the menu on the right syllable with its chord, Apply rewrites one line, Ctrl+Z restores, typing a word before chorded syllables and lengthening a chord name keep every chord on its syllable.
+
 ## Open questions (editor)
 
 - Watermark for PDF export (text, placement, who sees which version): not specified, so not added.

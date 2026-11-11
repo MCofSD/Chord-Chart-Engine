@@ -94,6 +94,41 @@ export function syllableStarts(word: string, lang: string = L.defaultLanguage): 
   return [...new Set(starts)].filter((s) => s > 0 && s < word.length).sort((a, b) => a - b);
 }
 
+/** Words as the layout sees them (letters, digits, apostrophes). */
+const WORD = /[\p{L}\p{N}'’]+/gu;
+
+export interface SyllableSpan {
+  /** First character of the syllable. */
+  start: number;
+  /** One past its last character. */
+  end: number;
+  /** First character of the next syllable (in this word or the next), or the text length. */
+  next: number;
+}
+
+/**
+ * The sung syllable at character `index` of a lyric line. A click on a space
+ * or punctuation goes to the nearest word (the one before it when it's a tie).
+ * Undefined when the line has no words.
+ */
+export function syllableAt(text: string, index: number, lang?: string): SyllableSpan | undefined {
+  const words = [...text.matchAll(WORD)].map((m) => ({ s: m.index, e: m.index + m[0].length, w: m[0] }));
+  if (!words.length) return undefined;
+  let k = words.findIndex((w) => index >= w.s && index < w.e);
+  if (k < 0) {
+    const dist = (w: { s: number; e: number }) => (index < w.s ? w.s - index : index - (w.e - 1));
+    k = words.reduce((best, w, i) => (dist(w) < dist(words[best]!) ? i : best), 0);
+  }
+  const word = words[k]!;
+  const at = Math.min(Math.max(index, word.s), word.e - 1);
+  const cuts = [word.s, ...syllableStarts(word.w, lang).map((c) => word.s + c), word.e];
+  let j = 0;
+  while (j + 2 < cuts.length && cuts[j + 1]! <= at) j++;
+  const end = cuts[j + 1]!;
+  const next = end < word.e ? end : (words[k + 1]?.s ?? text.length);
+  return { start: cuts[j]!, end, next };
+}
+
 /** Syllables of a word, e.g. "Walking" -> ["Walk", "ing"]. */
 export function syllables(word: string, lang?: string): string[] {
   const cuts = [0, ...syllableStarts(word, lang), word.length];
