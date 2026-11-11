@@ -6,6 +6,7 @@ import { lyricText } from "../src/text-format/canonical.js";
 import { chordAt, setChordAt, setSyllables, splitOf, type ChordTarget } from "../src/text-format/edit.js";
 import { parseChartText, writeChartText } from "../src/text-format/index.js";
 import { relink } from "../src/text-format/link.js";
+import { lineTiming } from "../src/chart/timing.js";
 import { syllableAt } from "../src/text/syllables.js";
 
 // Made-up lyrics only.
@@ -48,8 +49,37 @@ describe("setChordAt (click a syllable on the page)", () => {
   it("adds a chord on, before, or after the clicked syllable", () => {
     expect(anchors(line(edit(5, "Am7", "on").text))).toEqual(["|G@1", "Am7@4", "C@12"]);
     expect(anchors(line(edit(5, "Am7", "before").text))).toEqual(["|G@1", "Am7@4:before", "C@12"]);
-    // After "ing" = pinned to the next syllable ("down") as "just after the one before".
-    expect(anchors(line(edit(5, "Am7", "after").text))).toEqual(["|G@1", "Am7@8:after", "C@12"]);
+    // After "ing" = pinned right after its letters (the space), ahead of anything else in that gap.
+    expect(anchors(line(edit(5, "Am7", "after").text))).toEqual(["|G@1", "Am7@7:after", "C@12"]);
+  });
+
+  it("keeps an 'after' chord in the measure of its syllable when a bar line follows it", () => {
+    // Like the end of SUBG's first verse: "|G" on the first "la", "|-" after "la,", then "D".
+    const barSrc = HEAD + "|G    |-  D\nla la, la la\n"; // "|-" on the space after "la," (character 6)
+    const text = "la la, la la";
+    const second = syllableAt(text, 3)!;
+    const before = line(barSrc);
+    expect(before.above.map((a) => a.at)).toEqual([1, 6, 10]);
+    for (const place of ["on", "before", "after"] as const) {
+      const r = setChordAt(barSrc, { section: 0, block: 0, syllable: second }, { group: "C", place });
+      if ("error" in r) throw new Error(r.error);
+      const b = line(r.text);
+      const k = b.above.findIndex((a) => a.items.some((i) => i.t === "chord" && i.chord.root === "C"));
+      const bar = b.above.findIndex((a) => a.items[0]?.t === "bar" && a.items[1]?.t === "same");
+      expect(k, place).toBeLessThan(bar); // C comes before the bar line: same measure as "la"
+      expect(b.above[bar]!.at, place).toBe(6); // the bar line is kept where it was
+      expect(lineTiming(b).times[k], place).toBeLessThan(4); // within bar 1
+    }
+  });
+
+  it("leaves a bar-line-only group alone: it isn't the syllable's chord", () => {
+    const barSrc = HEAD + "|G   >|-\nla la, la\n"; // "|-" just after the second "la"
+    const text = "la la, la";
+    const second = syllableAt(text, 3)!;
+    expect(chordAt(barSrc, { section: 0, block: 0, syllable: second })).toBeUndefined();
+    const r = setChordAt(barSrc, { section: 0, block: 0, syllable: second }, { group: "C", place: "after" });
+    if ("error" in r) throw new Error(r.error);
+    expect(line(r.text).above.some((a) => a.items[0]?.t === "bar" && a.items[1]?.t === "same")).toBe(true);
   });
 
   it("changes the chord or only its placement, keeping the rest of the group", () => {

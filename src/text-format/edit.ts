@@ -21,12 +21,18 @@ export interface ChordTarget {
   syllable: SyllableSpan;
 }
 
+/** A group with a chord (or a new bass note) in it; a bar line or "|-" alone is not a syllable's chord. */
+const hasChord = (a: Anchor) => a.items.some((i) => i.t === "chord" || i.t === "bass");
+
 /**
- * The anchor that belongs to a syllable: one placed "on" or "before" any of
- * its characters, or "after" it (pinned to the next syllable's start).
+ * The chord group that belongs to a syllable: one placed "on" or "before"
+ * any of its characters, or "after" it (pinned anywhere in the gap after its
+ * letters, up to the next syllable's start). Groups without a chord, such as
+ * a bar line, are left alone.
  */
 export function anchorIndex(block: LineBlock, syl: SyllableSpan): number {
-  return block.above.findIndex((a) => !a.alignRight && (a.place === "after" ? a.at === syl.next : a.at >= syl.start && a.at < syl.end));
+  return block.above.findIndex((a) => !a.alignRight && hasChord(a)
+    && (a.place === "after" ? a.at >= syl.end && a.at <= syl.next : a.at >= syl.start && a.at < syl.end));
 }
 
 /** The chord already on a syllable, as typed in a chord line (without its <, >), and its placement. */
@@ -88,7 +94,9 @@ export function setChordAt(src: string, target: ChordTarget, change: { group?: s
     const p = parseGroup(typed);
     if ("error" in p) return { error: p.error };
     if (!p.items.length) return { error: "type a chord, e.g. G or |Am7[2&]" };
-    const anchor: Anchor = { at: change.place === "after" ? target.syllable.next : target.syllable.start, items: p.items };
+    // "After" pins right after the syllable's letters, so the chord comes before anything
+    // else in the gap (a bar line there starts the next measure).
+    const anchor: Anchor = { at: change.place === "after" ? target.syllable.end : target.syllable.start, items: p.items };
     if (change.place !== "on") anchor.place = change.place;
     insertAt(next.above, anchor);
   }

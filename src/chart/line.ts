@@ -237,6 +237,11 @@ export function layoutLine(block: LineBlock, opts: LineOptions = {}): LaidLine {
       // previous syllable's ink ends; the gap opens before any opening
       // punctuation of the word ("(thanks").
       let ins = at;
+      // An "after" chord may be pinned anywhere in the gap after its syllable (the
+      // editor pins it right after the letters, so it comes before a bar line in
+      // that gap): the space it opens goes before the next word, so trailing
+      // punctuation ("yeah,") stays with the syllable.
+      if (place === "after") while (ins < text.length && !isLetter(text[ins]) && !isOpening(text[ins])) ins++;
       // Opening punctuation goes with its word, unless it was already drawn.
       while (ins > charIdx && isOpening(text[ins - 1])) ins--;
       emitUntil(ins);
@@ -260,7 +265,7 @@ export function layoutLine(block: LineBlock, opts: LineOptions = {}): LaidLine {
       } else {
         const p = Math.max(hasPrev ? textEnd + S.afterOffset : left + point, minX + point, timeX + point);
         x = p - point;
-        if (at < text.length) openGap((midWord ? x + w : x + coreR) + S.placePad - lyricX, ins, textEnd);
+        if (ins < text.length) openGap((midWord ? x + w : x + coreR) + S.placePad - lyricX, ins, textEnd);
       }
     }
     chords.push({ x, runs });

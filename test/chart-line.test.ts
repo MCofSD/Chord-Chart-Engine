@@ -236,6 +236,19 @@ describe("layoutLine", () => {
       expect(rel("after")).toBeCloseTo(riv, 6);
     });
 
+    it("'after' pinned right after a word's letters keeps its comma with it and opens the gap before the next word", () => {
+      const lyric = "la la, la la";
+      const comma = lyric.indexOf(",");
+      const items = [chord("C", { chord: { root: "C", quality: "maj7" } })];
+      const laid = layoutLine(line([{ at: comma, place: "after", items }], lyric));
+      // The comma is drawn right after "la", not pushed away from it.
+      expect(drawnCharX(laid, comma)).toBeCloseTo(drawnCharX(laid, 3) + textWidth("la", size), 6);
+      // The chord hangs off "la," and the next word clears its letter.
+      expect(pointOf(laid, items)).toBeCloseTo(drawnCharX(laid, comma) + textWidth(",", size) + S.afterOffset, 6);
+      expect(drawnCharX(laid, comma + 2)).toBeGreaterThanOrEqual(laid.chords[0]!.x + groupRuns(items).core![1] + S.placePad - 1e-6);
+      expect(hyphens(laid)).toHaveLength(0);
+    });
+
     it("a timed 'before' chord stays on its beat; its syllable moves to it", () => {
       const down = LYRIC.indexOf("down");
       const items = [chord("D", { beats: "4&" })]; // later than where "down" falls by itself
