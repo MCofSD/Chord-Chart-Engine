@@ -20,9 +20,10 @@ function metaLines(chart: Chart): string[] {
   const m = chart.meta as unknown as Record<string, unknown>;
   for (const [typed, key] of Object.entries(HEADER_KEYS)) {
     const v = m[key];
-    if (v === undefined) continue;
+    if (v === undefined || (Array.isArray(v) && !v.length)) continue;
     const name = typed.replace(/\b\w/, (c) => c.toUpperCase()).replace("Bpm", "BPM");
-    const value = key === "meter" ? `${(v as { top: number }).top}/${(v as { bottom: number }).bottom}` : String(v);
+    const value = key === "meter" ? `${(v as { top: number }).top}/${(v as { bottom: number }).bottom}`
+      : key === "syllables" ? (v as string[]).join(", ") : String(v);
     out.push(`${name}: ${value}`);
   }
   const known = new Set<string>(Object.values(HEADER_KEYS));

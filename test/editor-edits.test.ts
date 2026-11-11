@@ -3,8 +3,8 @@ import { fitLine } from "../src/chart/line.js";
 import { renderChart } from "../src/chart/render.js";
 import type { LineBlock } from "../src/model/chart.js";
 import { lyricText } from "../src/text-format/canonical.js";
-import { chordAt, setChordAt, type ChordTarget } from "../src/text-format/edit.js";
-import { parseChartText } from "../src/text-format/index.js";
+import { chordAt, setChordAt, setSyllables, splitOf, type ChordTarget } from "../src/text-format/edit.js";
+import { parseChartText, writeChartText } from "../src/text-format/index.js";
 import { relink } from "../src/text-format/link.js";
 import { syllableAt } from "../src/text/syllables.js";
 
@@ -17,10 +17,10 @@ const anchors = (b: LineBlock) => b.above.map((a) => `${a.items.map((i) => (i.t 
 describe("syllableAt", () => {
   const text = "Walking down, the river";
   it("finds the sung syllable under a character", () => {
-    expect(syllableAt(text, 1)).toEqual({ start: 0, end: 4, next: 4 }); // Walk|ing
-    expect(syllableAt(text, 5)).toEqual({ start: 4, end: 7, next: 8 }); // ing -> down
-    expect(syllableAt(text, 19)).toEqual({ start: 18, end: 21, next: 21 }); // riv|er
-    expect(syllableAt(text, 22)).toEqual({ start: 21, end: 23, next: 23 }); // last syllable: next = end of text
+    expect(syllableAt(text, 1)).toMatchObject({ start: 0, end: 4, next: 4 }); // Walk|ing
+    expect(syllableAt(text, 5)).toMatchObject({ start: 4, end: 7, next: 8 }); // ing -> down
+    expect(syllableAt(text, 19)).toMatchObject({ start: 18, end: 21, next: 21 }); // riv|er
+    expect(syllableAt(text, 22)).toMatchObject({ start: 21, end: 23, next: 23 }); // last syllable: next = end of text
   });
   it("goes to the nearest word from a space or punctuation", () => {
     expect(syllableAt(text, 11)!.start).toBe(8); // "," after "down"
@@ -173,5 +173,52 @@ describe("page tags for clicking (annotate)", () => {
     const chart = parseChartText(HEAD + "G\nla la\n").chart;
     expect(renderChart(chart, { annotate: true }).pages[0]).toMatch(/<g data-lyric="0:0:0">/);
     expect(renderChart(chart).pages[0]).not.toMatch(/data-lyric/);
+  });
+});
+
+describe("a chart's own syllable splits (Syllables: header)", () => {
+  const src = HEAD.replace("Key: G\n", "Key: G\nLanguage: en\n") + "G\nla dedicated la\n";
+
+  it("reads and writes the header line", () => {
+    const chart = parseChartText(src.replace("Language: en\n", "Language: en\nSyllables: de-di-cat-ed, fire\n")).chart;
+    expect(chart.meta.syllables).toEqual(["de-di-cat-ed", "fire"]);
+    expect(writeChartText(chart)).toMatch(/^Syllables: de-di-cat-ed, fire$/m);
+    expect(parseChartText(HEAD.replace("Key: G\n", "Key: G\nSyllables: de di\n")).problems).toEqual([]);
+    expect(parseChartText(HEAD.replace("Key: G\n", "Key: G\nSyllables: de--di\n")).problems[0]!.message).toMatch(/hyphens/);
+  });
+
+  it("overrides the automatic split for this chart only", () => {
+    expect(splitOf("dedicated", "en", undefined)).toBe("ded-i-cat-ed");
+    expect(splitOf("dedicated", "en", ["de-di-cat-ed"])).toBe("de-di-cat-ed");
+    expect(splitOf("Dedicated", "en", ["de-di-cat-ed"])).toBe("De-di-cat-ed");
+    expect(syllableAt("la dedicated", 4, "en", ["de-di-cat-ed"])).toMatchObject({ start: 3, end: 5, wordStart: 3, wordEnd: 12 });
+  });
+
+  it("adds, replaces and drops entries in the header line", () => {
+    const one = setSyllables(src, "dedicated", "de-di-cat-ed");
+    if ("error" in one) throw new Error(one.error);
+    expect(one.text.split("\n").slice(0, 4)).toEqual(["Title: T", "Key: G", "Language: en", "Syllables: de-di-cat-ed"]);
+    expect(one.line).toBe(4);
+    const two = setSyllables(one.text, "river", "river"); // one syllable instead of riv-er
+    if ("error" in two) throw new Error(two.error);
+    expect(two.text).toMatch(/^Syllables: de-di-cat-ed, river$/m);
+    // Back to the automatic split: the entry goes, and the line with it when empty.
+    const back = setSyllables(one.text, "Dedicated", "ded-i-cat-ed");
+    if ("error" in back) throw new Error(back.error);
+    expect(back.text).not.toMatch(/Syllables/);
+    expect(back.text).toBe(src);
+  });
+
+  it("checks what is typed", () => {
+    expect(setSyllables(src, "dedicated", "de-di-cat")).toMatchObject({ error: expect.stringMatching(/spell/) });
+    expect(setSyllables(src, "dedicated", "de--dicated")).toMatchObject({ error: expect.stringMatching(/hyphens/) });
+  });
+
+  it("moves a chord with the new split: it sits on the middle of its (new) syllable", () => {
+    const withChord = HEAD + "   G\nla dedicated la\n"; // G on the "d" of "ded"
+    const x = (s: string) => Number(/<text x="([\d.]+)"[^>]*>G</.exec(renderChart(parseChartText(s).chart).pages[0]!)![1]);
+    const reSplit = setSyllables(withChord, "dedicated", "de-di-cat-ed");
+    if ("error" in reSplit) throw new Error(reSplit.error);
+    expect(x(reSplit.text)).toBeLessThan(x(withChord)); // "de" is narrower than "ded", so its middle is further left
   });
 });

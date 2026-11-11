@@ -58,6 +58,8 @@ export interface LineOptions {
   timing?: LineTiming;
   /** Language of the lyrics, for sung syllables. Default: rules lyrics.defaultLanguage. */
   language?: string;
+  /** The chart's own syllable splits (meta.syllables). */
+  syllables?: readonly string[];
 }
 
 export function layoutLine(block: LineBlock, opts: LineOptions = {}): LaidLine {
@@ -148,7 +150,7 @@ export function layoutLine(block: LineBlock, opts: LineOptions = {}): LaidLine {
   // to the next anchored or marked character inside the word ("start|ed").
   const boundaries = new Set<number>([...timing.anchors.map((a) => a.at), ...timing.marks.map((m) => m.at)]);
   // Sung syllables split words too (Walk|ing), so a beat lands on the middle of its own syllable.
-  for (const m of text.matchAll(/[\p{L}\p{N}'’]+/gu)) for (const s of syllableStarts(m[0], opts.language)) boundaries.add(m.index + s);
+  for (const m of text.matchAll(/[\p{L}\p{N}'’]+/gu)) for (const s of syllableStarts(m[0], opts.language, opts.syllables)) boundaries.add(m.index + s);
   /** Half the width of the syllable starting at character `at` (0 if it isn't a letter). */
   const syllableHalf = (at: number): number => {
     if (!isLetter(text[at])) return 0;
@@ -280,6 +282,8 @@ export interface FitOptions {
   meter?: Meter;
   /** Language of the lyrics, for sung syllables. */
   language?: string;
+  /** The chart's own syllable splits (meta.syllables). */
+  syllables?: readonly string[];
   /** Time axis under a notation snippet; such lines are not flexed or wrapped. */
   axis?: (t: number) => number;
 }
@@ -296,7 +300,7 @@ export function fitLine(block: LineBlock, opts: FitOptions = {}): LaidLine[] {
   const left = opts.left ?? CHART.content.left;
   const right = opts.right ?? CHART.content.right;
   const timing = lineTiming(block, opts.meter);
-  const lang = opts.language !== undefined ? { language: opts.language } : {};
+  const lang = { ...(opts.language !== undefined ? { language: opts.language } : {}), ...(opts.syllables ? { syllables: opts.syllables } : {}) };
   if (opts.axis) return [layoutLine(block, { left, right, axis: opts.axis, timing, ...lang })];
 
   const full = CHART.spacing.beatWidth;

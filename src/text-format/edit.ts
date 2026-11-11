@@ -6,9 +6,9 @@
  * Pure: no DOM.
  */
 import type { Anchor, Block, LineBlock } from "../model/chart.js";
-import type { SyllableSpan } from "../text/syllables.js";
+import { syllables, type SyllableSpan } from "../text/syllables.js";
 import { canonicalBlock, stableJson } from "./canonical.js";
-import { parseChartText } from "./parse.js";
+import { HEADER_KEYS, parseChartText } from "./parse.js";
 import { groupText, parseGroup } from "./tokens.js";
 import { blockLines } from "./write.js";
 
@@ -93,4 +93,47 @@ export function setChordAt(src: string, target: ChordTarget, change: { group?: s
     insertAt(next.above, anchor);
   }
   return replaceBlock(src, target.section, target.block, next);
+}
+
+const WORD_SPLIT = /^[\p{L}\p{N}'’]+(-[\p{L}\p{N}'’]+)*$/u;
+
+/** How a word is split into sung syllables for this chart, e.g. "ded-i-cat-ed". */
+export function splitOf(word: string, language: string | undefined, overrides: readonly string[] | undefined): string {
+  return syllables(word, language, overrides).join("-");
+}
+
+/**
+ * Sets how `word` splits into sung syllables in this chart (owner,
+ * 2026-11-10): `split` is the word with hyphens where it breaks
+ * ("de-di-cat-ed"; no hyphen = one syllable). Kept in the chart's
+ * "Syllables:" header line; a split that matches the automatic one is
+ * dropped from the line, and an empty line is removed.
+ */
+export function setSyllables(srcIn: string, word: string, split: string): { text: string; line?: number } | { error: string } {
+  const src = srcIn.replace(/\r\n?/g, "\n");
+  const typed = split.trim();
+  if (!WORD_SPLIT.test(typed)) return { error: "write the word with hyphens where it splits, e.g. ded-i-cat-ed" };
+  if (typed.replace(/-/g, "").toLowerCase() !== word.toLowerCase()) return { error: `the letters must spell “${word}”` };
+  const { chart } = parseChartText(src);
+  const same = (e: string) => e.replace(/-/g, "").toLowerCase() === word.toLowerCase();
+  const list = (chart.meta.syllables ?? []).filter((e) => !same(e));
+  const auto = splitOf(word, chart.meta.language, list);
+  if (typed.toLowerCase() !== auto.toLowerCase()) list.push(typed.toLowerCase());
+  // The header: lines before the first line that isn't a header field (or blank).
+  const lines = src.split("\n");
+  let last = -1, at = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i]!;
+    if (l.trim() === "") continue;
+    const m = /^([A-Za-z][A-Za-z ]*?)\s*:/.exec(l);
+    if (!m || !HEADER_KEYS[m[1]!.toLowerCase()]) break;
+    last = i;
+    if (HEADER_KEYS[m[1]!.toLowerCase()] === "syllables") at = i;
+  }
+  const value = list.length ? `Syllables: ${list.join(", ")}` : undefined;
+  if (at >= 0) {
+    if (value) lines[at] = value; else lines.splice(at, 1);
+  } else if (value) lines.splice(last + 1, 0, value);
+  const line = value ? (at >= 0 ? at : last + 1) + 1 : undefined;
+  return line === undefined ? { text: lines.join("\n") } : { text: lines.join("\n"), line };
 }

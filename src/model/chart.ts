@@ -58,6 +58,12 @@ export interface ChartMeta {
   originalKey?: string;
   /** Tuning label for the cover, e.g. "Eb Standard Tuning". */
   tuning?: string;
+  /**
+   * How this song splits words into sung syllables where it differs from the
+   * automatic split, written with hyphens ("ded-i-cat-ed"; "fire" = one
+   * syllable). Overrides rules lyrics.exceptions for this chart.
+   */
+  syllables?: string[];
 }
 
 export interface Meter { top: number; bottom: number }

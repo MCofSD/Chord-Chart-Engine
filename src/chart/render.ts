@@ -156,7 +156,7 @@ function layoutNotation(block: NotationBlock, draw: RenderChartOptions["notation
 }
 
 /** Lays out a section's blocks; `meter` carries inline meter changes from line to line. */
-function layoutBlocks(blocks: Block[], meter: { current: Meter }, draw: RenderChartOptions["notation"], warnings: string[], language: string | undefined): LaidBlock[] {
+function layoutBlocks(blocks: Block[], meter: { current: Meter }, draw: RenderChartOptions["notation"], warnings: string[], lyrics: { language?: string; syllables?: readonly string[] }): LaidBlock[] {
   const laid: LaidBlock[] = [];
   return blocks.map((block, i) => {
     if (block.kind === "notation") { const b = { block, notation: layoutNotation(block, draw, warnings) }; laid[i] = b; return b; }
@@ -165,7 +165,7 @@ function layoutBlocks(blocks: Block[], meter: { current: Meter }, draw: RenderCh
     const prevRender = laid[i - 1]?.notation?.render;
     const axis = prev?.kind === "snippet" ? snippetAxis(prev, meter.current)
       : prevRender ? ((ax) => (t: number) => P.content.left + ax(t))(notationAxis(prevRender)) : undefined;
-    const lang = language !== undefined ? { language } : {};
+    const lang = lyrics;
     const rows = fitLine(block, axis ? { meter: meter.current, axis, ...lang } : { meter: meter.current, ...lang });
     meter.current = lineTiming(block, meter.current).endMeter;
     laid[i] = { block, rows };
@@ -268,7 +268,10 @@ export function renderChart(chart: Chart, options: RenderChartOptions = {}): Ren
   const colors = repeatColors(chart, warnings);
   const meter = { current: chart.meta.meter ?? DEFAULT_METER };
   const laid = chart.sections.map((section, si) => {
-    const blocks = layoutBlocks(section.blocks, meter, options.notation, warnings, chart.meta.language);
+    const blocks = layoutBlocks(section.blocks, meter, options.notation, warnings, {
+      ...(chart.meta.language !== undefined ? { language: chart.meta.language } : {}),
+      ...(chart.meta.syllables?.length ? { syllables: chart.meta.syllables } : {}),
+    });
     if (options.annotate) blocks.forEach((b, bi) => { if (b.rows) b.source = `${si}:${bi}`; });
     for (const b of blocks) for (const r of b.rows ?? []) for (const w of r.warnings) warnings.push(`${section.label || section.type}: ${w}`);
     return blocks;

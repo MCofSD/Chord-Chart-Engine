@@ -11,9 +11,9 @@ import type { Chart, NotationBlock } from "../../src/model/chart.js";
 import { renderNotation, type NotationRender } from "../../src/notation/render.js";
 import { parseChartText, writeChartText, type Problem } from "../../src/text-format/index.js";
 import { lyricText } from "../../src/text-format/canonical.js";
-import { chordAt, setChordAt, type ChordTarget, type Place } from "../../src/text-format/edit.js";
+import { chordAt, setChordAt, setSyllables, splitOf, type ChordTarget, type Place } from "../../src/text-format/edit.js";
 import { relink } from "../../src/text-format/link.js";
-import { syllableAt } from "../../src/text/syllables.js";
+import { syllableAt, type SyllableSpan } from "../../src/text/syllables.js";
 import demo from "../../test/fixtures/charts/demo.json" with { type: "json" };
 
 const DRAFT_KEY = "chart-editor:draft";
@@ -208,7 +208,12 @@ text.addEventListener("input", (e) => {
 const menu = $("chord-menu");
 const menuInput = $<HTMLInputElement>("chord-input");
 const menuError = $("chord-error");
+const sylInput = $<HTMLInputElement>("syl-input");
 let target: ChordTarget | undefined;
+/** The clicked syllable's chord, word and current split, when the menu opened. */
+let menuExisting: { group: string; place: Place } | undefined;
+let menuWord = "";
+let menuSplit = "";
 let place: Place = "on";
 let highlight: SVGRectElement | undefined;
 
@@ -237,34 +242,75 @@ function charAtPointer(el: SVGTextElement, e: MouseEvent): number {
   return Math.max(0, n - 1);
 }
 
-pagesEl.addEventListener("click", (e) => {
+/** The sung syllable under the pointer, if it is over a lyric on the page. */
+interface Hit { g: Element; el: SVGTextElement; si: number; bi: number; from: number; lyric: string; syl: SyllableSpan }
+function syllableUnder(e: MouseEvent): Hit | undefined {
   const g = (e.target as Element).closest?.("g[data-lyric]");
   const el = g?.querySelector("text");
-  if (!g || !el || !shown) { closeMenu(); return; }
+  if (!g || !el || !shown) return undefined;
   const [si, bi, from] = g.getAttribute("data-lyric")!.split(":").map(Number) as [number, number, number];
   const block = shown.sections[si]?.blocks[bi];
-  if (block?.kind !== "line") return;
+  if (block?.kind !== "line") return undefined;
   const lyric = lyricText(block.lyrics);
-  const syl = syllableAt(lyric, from + charAtPointer(el, e), shown.meta.language);
-  if (!syl) return;
+  const syl = syllableAt(lyric, from + charAtPointer(el, e), shown.meta.language, shown.meta.syllables);
+  return syl ? { g, el, si, bi, from, lyric, syl } : undefined;
+}
+
+/** A box behind the syllable's letters in this piece of the line. */
+function markSyllable(h: Hit, cls: string): SVGRectElement | undefined {
+  const a = Math.max(0, h.syl.start - h.from), z = Math.min(h.el.getNumberOfChars(), h.syl.end - h.from);
+  if (z <= a) return undefined;
+  const r0 = h.el.getExtentOfChar(a), r1 = h.el.getExtentOfChar(z - 1);
+  const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  rect.setAttribute("class", cls);
+  rect.setAttribute("x", String(r0.x - 1));
+  rect.setAttribute("y", String(r0.y));
+  rect.setAttribute("width", String(r1.x + r1.width - r0.x + 2));
+  rect.setAttribute("height", String(r0.height));
+  h.g.insertBefore(rect, h.g.firstChild);
+  return rect;
+}
+
+// Hover: show the syllable a click would pick.
+let hoverRect: SVGRectElement | undefined;
+let hoverKey = "";
+let hoverFrame = 0;
+function clearHover(): void {
+  hoverRect?.remove();
+  hoverRect = undefined;
+  hoverKey = "";
+}
+pagesEl.addEventListener("mousemove", (e) => {
+  cancelAnimationFrame(hoverFrame);
+  hoverFrame = requestAnimationFrame(() => {
+    const h = syllableUnder(e);
+    const key = h ? `${h.si}:${h.bi}:${h.syl.start}:${h.from}` : "";
+    if (key === hoverKey && hoverRect?.isConnected) return;
+    clearHover();
+    if (!h) return;
+    hoverKey = key;
+    hoverRect = markSyllable(h, "syl-hover");
+  });
+});
+pagesEl.addEventListener("mouseleave", () => { cancelAnimationFrame(hoverFrame); clearHover(); });
+
+pagesEl.addEventListener("click", (e) => {
+  const h = syllableUnder(e);
+  if (!h) { closeMenu(); return; }
+  const { si, bi, lyric, syl } = h;
   closeMenu();
+  clearHover();
   target = { section: si, block: bi, syllable: syl };
-  // Highlight the syllable's letters in this piece.
-  const a = Math.max(0, syl.start - from), z = Math.min(el.getNumberOfChars(), syl.end - from);
-  if (z > a) {
-    const r0 = el.getExtentOfChar(a), r1 = el.getExtentOfChar(z - 1);
-    highlight = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    highlight.setAttribute("class", "syl-hl");
-    highlight.setAttribute("x", String(r0.x - 1));
-    highlight.setAttribute("y", String(r0.y));
-    highlight.setAttribute("width", String(r1.x + r1.width - r0.x + 2));
-    highlight.setAttribute("height", String(r0.height));
-    g.insertBefore(highlight, g.firstChild);
-  }
+  highlight = markSyllable(h, "syl-hl");
   const existing = chordAt(text.value, target);
+  menuExisting = existing;
+  menuWord = lyric.slice(syl.wordStart, syl.wordEnd);
+  menuSplit = splitOf(menuWord, shown?.meta.language, shown?.meta.syllables);
   $("chord-syllable").textContent = `“${lyric.slice(syl.start, syl.end)}”`;
-  $("chord-where").textContent = shown.sections[si]!.label || `section ${si + 1}`;
+  $("chord-where").textContent = shown?.sections[si]?.label || `section ${si + 1}`;
   menuInput.value = existing?.group ?? "";
+  sylInput.value = menuSplit;
+  $("syl-word").textContent = `“${menuWord}”`;
   setPlace(existing?.place ?? "on");
   $("chord-remove").hidden = !existing;
   menuError.textContent = "";
@@ -279,16 +325,40 @@ pagesEl.addEventListener("click", (e) => {
   menuInput.select();
 });
 
+/**
+ * Apply: the chord (if it changed; an emptied box removes it), then the word's
+ * syllable split (if it changed), as one edit of the text.
+ */
 function applyChord(remove: boolean): void {
   if (!target) return;
-  const r = setChordAt(text.value, target, remove ? { place } : { group: menuInput.value, place });
-  if ("error" in r) { menuError.textContent = r.error; return; }
-  const lines = r.text.split("\n");
-  const start = lines.slice(0, r.from - 1).reduce((n, l) => n + l.length + 1, 0);
-  const end = lines.slice(0, r.to).reduce((n, l) => n + l.length + 1, 0) - 1;
+  let src = text.value;
+  let sel: [number, number] | undefined; // 1-based lines to select afterwards
+  const typed = menuInput.value.trim();
+  const chordChanged = remove || typed !== (menuExisting?.group ?? "") || place !== (menuExisting?.place ?? "on");
+  if (chordChanged && (typed || menuExisting)) {
+    const r = setChordAt(src, target, remove || !typed ? { place } : { group: typed, place });
+    if ("error" in r) { menuError.textContent = r.error; return; }
+    src = r.text;
+    sel = [r.from, r.to];
+  }
+  const split = sylInput.value.trim();
+  if (!remove && split && split !== menuSplit) {
+    const r = setSyllables(src, menuWord, split);
+    if ("error" in r) { menuError.textContent = r.error; return; }
+    // A header line added or removed moves everything below it.
+    const shift = r.text.split("\n").length - src.split("\n").length;
+    src = r.text;
+    if (sel) sel = [sel[0] + shift, sel[1] + shift];
+    else if (r.line !== undefined) sel = [r.line, r.line];
+  }
   closeMenu();
-  replaceText(r.text, start, end);
-  baseline = r.text;
+  if (src === text.value) return;
+  const lines = src.split("\n");
+  const [a, z] = sel ?? [1, 1];
+  const start = lines.slice(0, a - 1).reduce((n, l) => n + l.length + 1, 0);
+  const end = lines.slice(0, z).reduce((n, l) => n + l.length + 1, 0) - 1;
+  replaceText(src, start, end);
+  baseline = src;
   render();
 }
 
@@ -302,7 +372,7 @@ menu.addEventListener("click", (e) => {
 });
 menu.addEventListener("keydown", (e) => {
   if (e.key === "Escape") { e.preventDefault(); closeMenu(); }
-  else if (e.key === "Enter" && e.target === menuInput) { e.preventDefault(); applyChord(false); }
+  else if (e.key === "Enter" && (e.target === menuInput || e.target === sylInput)) { e.preventDefault(); applyChord(false); }
 });
 
 // Wiring.

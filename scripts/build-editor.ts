@@ -94,12 +94,14 @@ details td{padding:2px 10px 2px 0;vertical-align:top}
 .preview{overflow:auto;padding:16px;min-height:0;position:relative}
 .follow{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--mut)}
 #pages g[data-lyric]{cursor:pointer}
-@media screen{#pages g[data-lyric]:hover text{fill:#1b4f8c}}
+.syl-hover{fill:#d6e6f8}
 .syl-hl{fill:#ffe48a}
 #chord-menu{position:absolute;z-index:5;width:250px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.25);padding:10px 12px}
 #chord-menu .menu-head{margin:0 0 8px;font-size:14px}
 #chord-where{color:var(--mut);font-size:12px}
 #chord-menu label{display:block;font-size:12px;color:var(--mut)}
+.syl-label{margin-top:10px}
+#syl-input{width:100%;font:14px Arimo,Arial,sans-serif;padding:4px 8px;margin:2px 0 0;border:1px solid var(--line);border-radius:4px;background:var(--card);color:var(--fg)}
 #chord-input{width:100%;font:16px Arimo,Arial,sans-serif;padding:5px 8px;margin:2px 0 8px;border:1px solid var(--line);border-radius:4px;background:var(--card);color:var(--fg)}
 .places{display:flex;gap:4px}
 .places button{flex:1;padding:4px 6px}
@@ -114,7 +116,7 @@ details td{padding:2px 10px 2px 0;vertical-align:top}
 @media (max-width:900px){main{grid-template-columns:1fr;grid-template-rows:auto auto}.edit{border-right:0;border-bottom:1px solid var(--line)}textarea{min-height:50vh}.preview{overflow:visible}}
 @page{size:letter;margin:0}
 @media print{
-  header,.edit,#chord-menu,.syl-hl{display:none}
+  header,.edit,#chord-menu,.syl-hl,.syl-hover{display:none}
   body,html{display:block;height:auto;background:#fff}
   main{display:block}
   .preview{padding:0;overflow:visible}
@@ -147,7 +149,8 @@ details td{padding:2px 10px 2px 0;vertical-align:top}
 <details>
 <summary>How to write a chart</summary>
 <table>
-<tr><td><code>Title: …</code></td><td>Header lines at the top: Title, Artist, Year, Key, Original key, BPM, Meter, Tuning, Language, Date.</td></tr>
+<tr><td><code>Title: …</code></td><td>Header lines at the top: Title, Artist, Year, Key, Original key, BPM, Meter, Tuning, Language, Syllables, Date.</td></tr>
+<tr><td><code>Syllables: de-di-cat-ed, fire</code></td><td>How this song splits words into sung syllables, where it differs from the automatic split (no hyphen = one syllable). Also set from the menu when you click a word.</td></tr>
 <tr><td><code># 1st Ver</code></td><td>Starts a section. The type comes from the label; add <code>=bridge</code> to set it.</td></tr>
 <tr><td>chord line</td><td>Chords sit over the lyric line below. A chord's letter goes over the syllable it lands on; a bar line just before it.</td></tr>
 <tr><td><code>|G  Bbm7/C[2&amp;]</code></td><td>Bar line, chords, beat tag in [ ].</td></tr>
@@ -183,6 +186,8 @@ details td{padding:2px 10px 2px 0;vertical-align:top}
 <button type="button" data-place="on" aria-pressed="true">On</button>
 <button type="button" data-place="after" aria-pressed="false">After</button>
 </div>
+<label for="syl-input" class="syl-label">Syllables of <span id="syl-word"></span></label>
+<input id="syl-input" autocomplete="off" spellcheck="false" placeholder="ded-i-cat-ed">
 <p id="chord-error" role="alert"></p>
 <div class="menu-actions">
 <button type="button" id="chord-apply" class="primary">Apply</button>

@@ -10,7 +10,9 @@
  *    two consonants (lan|terns), keeping digraphs together (sing|er, fa|ther);
  *    a silent final "e" stays in the syllable before it (breathe, you've).
  *    For languages without patterns (e.g. Tagalog) this rule does it all.
- * Words listed in rules.lyrics.exceptions ("fire" or "fi-re") override both.
+ * Words listed in rules.lyrics.exceptions ("fire" or "fi-re") override both,
+ * and a chart's own list (meta.syllables, the "Syllables:" header line)
+ * overrides the rules file for that song.
  */
 import { createRequire } from "node:module";
 import { RULES } from "../rules/index.js";
@@ -72,10 +74,18 @@ function ruleSplits(s: string, lang: string): number[] {
   return cuts;
 }
 
-/** Offsets (> 0) inside `word` where a new sung syllable starts. */
-export function syllableStarts(word: string, lang: string = L.defaultLanguage): number[] {
+/** A word written with its breaks ("ded-i-cat-ed"), as in an exceptions list, if `list` has it. */
+function listed(list: readonly string[], word: string): string | undefined {
   const lower = word.toLowerCase();
-  const exception = (L.exceptions as string[]).find((e) => e.replace(/-/g, "") === lower);
+  return list.find((e) => e.replace(/-/g, "").toLowerCase() === lower);
+}
+
+/**
+ * Offsets (> 0) inside `word` where a new sung syllable starts. `overrides`
+ * is the chart's own list (meta.syllables), checked before the rules file.
+ */
+export function syllableStarts(word: string, lang: string = L.defaultLanguage, overrides: readonly string[] = []): number[] {
+  const exception = listed(overrides, word) ?? listed(L.exceptions as string[], word);
   if (exception) {
     const starts: number[] = [];
     let n = 0;
@@ -104,6 +114,9 @@ export interface SyllableSpan {
   end: number;
   /** First character of the next syllable (in this word or the next), or the text length. */
   next: number;
+  /** The whole word the syllable is in: its first character and one past its last. */
+  wordStart: number;
+  wordEnd: number;
 }
 
 /**
@@ -111,7 +124,7 @@ export interface SyllableSpan {
  * or punctuation goes to the nearest word (the one before it when it's a tie).
  * Undefined when the line has no words.
  */
-export function syllableAt(text: string, index: number, lang?: string): SyllableSpan | undefined {
+export function syllableAt(text: string, index: number, lang?: string, overrides?: readonly string[]): SyllableSpan | undefined {
   const words = [...text.matchAll(WORD)].map((m) => ({ s: m.index, e: m.index + m[0].length, w: m[0] }));
   if (!words.length) return undefined;
   let k = words.findIndex((w) => index >= w.s && index < w.e);
@@ -121,16 +134,16 @@ export function syllableAt(text: string, index: number, lang?: string): Syllable
   }
   const word = words[k]!;
   const at = Math.min(Math.max(index, word.s), word.e - 1);
-  const cuts = [word.s, ...syllableStarts(word.w, lang).map((c) => word.s + c), word.e];
+  const cuts = [word.s, ...syllableStarts(word.w, lang, overrides).map((c) => word.s + c), word.e];
   let j = 0;
   while (j + 2 < cuts.length && cuts[j + 1]! <= at) j++;
   const end = cuts[j + 1]!;
   const next = end < word.e ? end : (words[k + 1]?.s ?? text.length);
-  return { start: cuts[j]!, end, next };
+  return { start: cuts[j]!, end, next, wordStart: word.s, wordEnd: word.e };
 }
 
 /** Syllables of a word, e.g. "Walking" -> ["Walk", "ing"]. */
-export function syllables(word: string, lang?: string): string[] {
-  const cuts = [0, ...syllableStarts(word, lang), word.length];
+export function syllables(word: string, lang?: string, overrides?: readonly string[]): string[] {
+  const cuts = [0, ...syllableStarts(word, lang, overrides), word.length];
   return cuts.slice(1).map((e, i) => word.slice(cuts[i], e));
 }

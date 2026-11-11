@@ -34,7 +34,7 @@ export const SECTION_TYPES: readonly SectionType[] = ["intro", "verse", "prechor
 /** Header keys as typed (lowercase) -> meta field. */
 export const HEADER_KEYS: Record<string, keyof ChartMeta> = {
   title: "title", artist: "artist", year: "year", key: "key", "original key": "originalKey",
-  bpm: "bpm", meter: "meter", tuning: "tuning", language: "language", date: "date",
+  bpm: "bpm", meter: "meter", tuning: "tuning", language: "language", syllables: "syllables", date: "date",
 };
 
 const TAB = 8;
@@ -282,6 +282,10 @@ export function parseChartText(src: string): ParseResult {
         const v = Number(value);
         if (!Number.isFinite(v) || value === "") problem(no, `${header[1]} needs a number`);
         else meta[key] = v;
+      } else if (key === "syllables") {
+        const words = value.split(/[,\s]+/).filter(Boolean);
+        for (const w of words) if (!/^[\p{L}\p{N}'’]+(-[\p{L}\p{N}'’]+)*$/u.test(w)) problem(no, `"${w}": write a word with hyphens where it splits, e.g. ded-i-cat-ed`);
+        if (words.length) meta.syllables = words;
       } else if (key === "meter") {
         const m = /^(\d+)\s*\/\s*(\d+)$/.exec(value);
         if (!m) problem(no, "Meter is written like 4/4 or 6/8");
