@@ -72,6 +72,11 @@ export function chordRuns(chord: ChordName, opts: { beats?: string; noBass?: boo
  * is another unit, lighter still (CHART.chord.bassWeight). Parentheses around the chord and beat tags weigh nothing.
  */
 export function chordBeatPoint(chord: ChordName, opts: { beats?: string; noBass?: boolean; paren?: boolean } = {}): number {
+  return measureChord(chord, opts).point;
+}
+
+/** A chord's beat point and where its core letters (root, flat/sharp, minor "m") start and end, from the start of its runs. */
+export function measureChord(chord: ChordName, opts: { beats?: string; noBass?: boolean; paren?: boolean } = {}): { point: number; core: [number, number] } {
   const runs = chordRuns(chord, opts);
   const quality = chord.quality ?? "";
   const minor = /^m(?!aj)/.test(quality);
@@ -85,6 +90,7 @@ export function chordBeatPoint(chord: ChordName, opts: { beats?: string; noBass?
   if (chord.bass) for (let i = 0; i < 1 + chord.bass.length; i++) roles.push("bass");
 
   let x = 0, k = 0, sum = 0, total = 0;
+  let core: [number, number] | undefined;
   const span: Record<"ext" | "bass", [number, number] | undefined> = { ext: undefined, bass: undefined };
   for (const r of runs) {
     if (r.kind === "space") { x += r.width; continue; }
@@ -92,7 +98,7 @@ export function chordBeatPoint(chord: ChordName, opts: { beats?: string; noBass?
     for (const ch of symbols) {
       const w = ch === null ? runWidth(r) : runWidth({ ...(r as Extract<Run, { kind: "text" }>), text: ch });
       const role = roles[k] ?? "none";
-      if (role === "core") { sum += x + w / 2; total += 1; }
+      if (role === "core") { sum += x + w / 2; total += 1; core = core ? [core[0], x + w] : [x, x + w]; }
       else if (role === "ext" || role === "bass") {
         const sp = span[role];
         span[role] = sp ? [sp[0], x + w] : [x, x + w];
@@ -105,7 +111,7 @@ export function chordBeatPoint(chord: ChordName, opts: { beats?: string; noBass?
     sum += weight * (sp[0] + sp[1]) / 2;
     total += weight;
   }
-  return total ? sum / total : 0;
+  return { point: total ? sum / total : 0, core: core ?? [0, 0] };
 }
 
 /**
@@ -203,9 +209,9 @@ export function gapBetween(a: ChordLineItem, b: ChordLineItem): number {
  * the first chord's weighted middle, else the "-" of "| -" or a timed stop's
  * "//" middle; undefined for groups with none (they align by their left edge).
  */
-export function groupRuns(items: ChordLineItem[]): { runs: Run[]; hang: number; beatPoint: number | undefined } {
+export function groupRuns(items: ChordLineItem[]): { runs: Run[]; hang: number; beatPoint: number | undefined; core?: [number, number] } {
   const runs: Run[] = [];
-  let hang: number | undefined, beatPoint: number | undefined;
+  let hang: number | undefined, beatPoint: number | undefined, core: [number, number] | undefined;
   items.forEach((item, i) => {
     const prev = items[i - 1];
     const gap = prev ? gapBetween(prev, item) : 0;
@@ -218,7 +224,9 @@ export function groupRuns(items: ChordLineItem[]): { runs: Run[]; hang: number; 
         if (item.beats !== undefined) opts.beats = item.beats;
         if (item.noBass !== undefined) opts.noBass = item.noBass;
         if (item.paren !== undefined) opts.paren = item.paren;
-        beatPoint = before + chordBeatPoint(item.chord, opts);
+        const m = measureChord(item.chord, opts);
+        beatPoint = before + m.point;
+        core = [before + m.core[0], before + m.core[1]];
       } else if (item.t === "same") beatPoint = before + runsWidth(itemRuns(item)) / 2;
       else if (item.t === "bass") beatPoint = before + runsWidth(bassRuns(item.bass, C.ink)) / 2;
       else if (item.t === "instrument" && item.beats !== undefined) beatPoint = before + runsWidth(itemRuns({ t: "instrument", op: item.op, text: item.text })) / 2;
@@ -229,5 +237,5 @@ export function groupRuns(items: ChordLineItem[]): { runs: Run[]; hang: number; 
     }
     runs.push(...itemRuns(item));
   });
-  return { runs, hang: hang ?? 0, beatPoint };
+  return core ? { runs, hang: hang ?? 0, beatPoint, core } : { runs, hang: hang ?? 0, beatPoint };
 }

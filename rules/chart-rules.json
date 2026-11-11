@@ -142,9 +142,14 @@
       "_tabOrigin": "Word's default tab stops: every 0.5 inch from the 0.1 inch margin (so 0.6 inch is a stop). Untimed chords past the end of the lyric go on this grid (owner, 2026-11-08).",
       "tabOrigin": 7.2,
       "tabStop": 36,
-      "_timingNear": "'before'/'after' chords: distance to the syllable they belong to (near) and to the other side of the gap (far). The asymmetry shows the timing. (verify)",
-      "timingNear": 2,
-      "timingFar": 12,
+      "_beforeOffset": "'before' chords (owner, 2026-11-10): the chord touches its syllable and is read first, with its weighted middle on the syllable's start plus this offset. Measured: SUBG |G before 'You' -1.2 pt, So Easy Adim7[2a] before 'gree' +7.6 pt (its A is centered on the start). (verify)",
+      "beforeOffset": 0,
+      "_afterOffset": "'after' chords: mirrored, weighted middle on the end of the syllable's last letter plus this offset. Measured: So Easy |EbMaj7 after 'dreams' -2.1 pt. (verify)",
+      "afterOffset": 0,
+      "_placePad": "Smallest space between a before/after chord (bar lines included) and the neighbouring syllable's ink. The lyric opens up (with a hyphen inside a word) to keep it. So Easy 'a - gree' leaves 6 pt with the hyphen in it. (verify)",
+      "placePad": 2,
+      "_beforeWordOverlap": "Between separate words, a 'before' chord's core letters (root, flat/sharp, minor m) may reach this far back over the end of the previous word, and an 'after' chord only keeps its core clear of the next word (its extension may hang over it). Inside a word the whole chord keeps placePad. Measured: SUBG E(m)5 before 'gone' overlaps 'been' by 4.0 pt; So Easy EbMaj7 after 'dreams': core 7.2 pt clear of '(dreams', 'Maj7' over it. (verify)",
+      "beforeWordOverlap": 4,
       "_beatWidth": "Rhythm spacing: points per beat for timed chords and syllables (owner, 2026-11-09). A beat sits at the middle of its syllable and the weighted middle of its chord; points are pushed right when text would collide, and later points keep their proportional distance. Measured: lyric entries at about 26 pt (beat 2), 50.4 pt (beat 3), 79 pt (beat 4), 11.6-16 pt (beat 1&) in Since U Been Gone, 21.6 / 43.2 pt in American Boy and So Easy; full chord lines run 25-28 pt per beat. Lines that don't fit flex this down first (see fitLine). (verify)",
       "beatWidth": 25.2,
       "_hyphenPad": "Space on each side of the hyphen in a word split by a gap ('start - ed').",
@@ -424,6 +429,8 @@
     "rhythmGrid": 0.5,
     "_betweenSyllables": "A chord whose middle is farther than this (pt) outside the nearest syllable is placed 'before'/'after' it and flagged.",
     "betweenSyllables": 3,
+    "_straddleMin": "Reading a chord over a syllable (owner, 2026-11-10): when the chord's core letters (root, flat/sharp, minor m) straddle the syllable's start it is 'before' the syllable, its end 'after', otherwise 'on'. The edge must lie at least this far (pt) inside the core. Measured: SUBG G over the start of 'You' (7.4 pt from its left, 5.0 from its right), So Easy A over the start of 'gree' (4.7 / 6.0), Eb over the end of 'dreams' (15.4 / 2.0), E over the start of 'gone' (7.2 / 3.4). (verify)",
+    "straddleMin": 1.5,
     "dateFormat": "M/D/YYYY"
   }
 }

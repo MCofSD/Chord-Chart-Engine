@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseChordRow } from "../src/importers/pdf-chart/chordline.js";
 import type { Glyph } from "../src/importers/pdf-chart/extract.js";
-import { importChartPdf } from "../src/importers/pdf-chart/index.js";
+import { importChartPdf, placementOf } from "../src/importers/pdf-chart/index.js";
 import { parseLyricRow } from "../src/importers/pdf-chart/lyricline.js";
 import { beatTag } from "../src/importers/pdf-chart/style.js";
 import type { Chart, ChordLineItem } from "../src/model/chart.js";
@@ -184,5 +184,28 @@ describe.skipIf(!existsSync(PDF) || !existsSync(FIXTURE))("import of a real char
 
   it("leaves nothing unrecognized", () => {
     expect(review.filter((r) => /unrecognized/.test(r.message))).toEqual([]);
+  });
+});
+
+describe("reading before / on / after (owner, 2026-11-10)", () => {
+  // Chord core letters and syllables measured in the original PDFs (pt).
+  const syl = (x0: number, x1: number) => ({ x0, x1 });
+  it("reads the examples from the originals", () => {
+    expect(placementOf([47.4, 59.8], 53.6, syl(54.8, 83.2))).toBe("before"); // SUBG |G before "You"
+    expect(placementOf([558.9, 569.6], 571.2, syl(563.6, 595.7))).toBe("before"); // So Easy Adim7 before "gree"
+    expect(placementOf([404.7, 422.1], 418.0, syl(366.8, 420.1))).toBe("after"); // So Easy EbMaj7 after "dreams"
+    expect(placementOf([324.1, 334.7], 333.3, syl(331.3, 366.8))).toBe("before"); // SUBG E(m)5 before "gone"
+  });
+  it("reads a chord inside a syllable, lined up with its first letter, or covering a short one, as on", () => {
+    expect(placementOf([60, 70], 65, syl(54.8, 83.2))).toBe("on");
+    expect(placementOf([54.3, 65], 59.6, syl(54.8, 83.2))).toBe("on"); // letter lined up with the word's start
+    expect(placementOf([70, 90], 80, syl(83, 87))).toBe("on"); // B♭ over "I"
+  });
+});
+
+describe("reading before / after needs the chord's middle near the edge too", () => {
+  it("keeps a chord centered on a short word as on, even if its core reaches past the end", () => {
+    // |Fm over "It's": F and the raised m reach past the end of "It's", but the chord is centered on it.
+    expect(placementOf([66, 88], 76, { x0: 65, x1: 87 })).toBe("on");
   });
 });

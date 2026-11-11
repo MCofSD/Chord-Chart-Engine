@@ -144,54 +144,106 @@ describe("layoutLine", () => {
     expect(laid.chords[1]!.x).toBeCloseTo(CHART.content.left + CHART.spacing.tabStop, 6);
   });
 
-  describe("timing: before / after a syllable", () => {
+  describe("timing: before / after a syllable (owner, 2026-11-10: the chord touches its syllable)", () => {
     const S = CHART.spacing;
-    const at = LYRIC.indexOf("river");
-    const prevEnd = charX(at - 1); // end of "the" (before the space)
+    const size = CHART.lyric.size;
+    const river = LYRIC.indexOf("river");
     const widthOf = (laid: LaidLine, i: number) => runsWidth(laid.chords[i]!.runs);
+    const pointOf = (laid: LaidLine, items: ChordLineItem[], i = 0) => laid.chords[i]!.x + groupRuns(items).beatPoint!;
+    const hyphens = (laid: LaidLine) => laid.lyrics.filter((p) => p.runs[0]!.kind === "text" && p.runs[0]!.text === "-");
 
-    it("'before' sits over white space, close to the next syllable", () => {
-      const laid = layoutLine(line([{ at, place: "before", items: [chord("G")] }]));
-      const x = laid.chords[0]!.x, w = widthOf(laid, 0);
-      expect(drawnCharX(laid, at) - (x + w)).toBeCloseTo(S.timingNear, 6);
-      expect(x - prevEnd).toBeGreaterThanOrEqual(S.timingFar - 1e-6);
+    it("'before': the chord's weighted middle sits on the syllable's start; between words its core may touch the previous word", () => {
+      const items = [chord("G")];
+      const laid = layoutLine(line([{ at: river, place: "before", items }]));
+      expect(pointOf(laid, items)).toBeCloseTo(drawnCharX(laid, river) + S.beforeOffset, 6);
+      const theEnd = drawnCharX(laid, river - 1); // end of "the" (the space after it starts there)
+      const core = groupRuns(items).core!;
+      expect(laid.chords[0]!.x + core[0]).toBeGreaterThanOrEqual(theEnd - S.beforeWordOverlap - 1e-6);
+      expect(hyphens(laid)).toHaveLength(0);
     });
 
-    it("'after' sits over white space, close to the previous syllable", () => {
-      const laid = layoutLine(line([{ at, place: "after", items: [chord("G")] }]));
-      const x = laid.chords[0]!.x, w = widthOf(laid, 0);
-      expect(x - prevEnd).toBeCloseTo(S.timingNear, 6);
-      expect(drawnCharX(laid, at) - (x + w)).toBeGreaterThanOrEqual(S.timingFar - 1e-6);
+    it("'before' a long chord between words opens the space only as far as its core needs", () => {
+      const items = [chord("E", { chord: { root: "E", quality: "(m)5" }, beats: "4&" })];
+      const lyric = "you've been gone";
+      const gone = lyric.indexOf("gone");
+      const laid = layoutLine(line([{ at: gone, place: "before", items }], lyric));
+      const beenEnd = drawnCharX(laid, gone - 1); // where the space after "been" starts
+      const coreLeft = laid.chords[0]!.x + groupRuns(items).core![0];
+      // The core reaches back over "been" exactly as far as allowed (a long chord), so "gone" moved only that much.
+      expect(coreLeft).toBeCloseTo(beenEnd - S.beforeWordOverlap, 6);
+      expect(pointOf(laid, items)).toBeCloseTo(drawnCharX(laid, gone), 6);
     });
 
-    it("the three placements of the same chord are visibly different", () => {
-      const xs = (["after", "on", "before"] as const).map((place) => {
-        const laid = layoutLine(line([{ at, place, items: [chord("G")] }]));
-        return laid.chords[0]!.x - drawnCharX(laid, at);
-      });
-      // after: well left of the syllable; before: just left of it; on: centered over it.
-      expect(xs[0]!).toBeLessThan(xs[2]!);
-      expect(xs[2]!).toBeLessThan(xs[1]!);
-      const g = groupRuns([chord("G")]).beatPoint!;
-      expect(xs[1]!).toBeCloseTo(textWidth("riv", CHART.lyric.size) / 2 - g, 6);
+    it("'before' a syllable inside a word: a hyphen splits the word and the chord clears the previous syllable", () => {
+      const ing = LYRIC.indexOf("Walking") + 4; // Walk|ing
+      const items = [chord("D", { chord: { root: "D", quality: "m7" } })];
+      const laid = layoutLine(line([{ at: ing, place: "before", items }]));
+      const walkEnd = drawnCharX(laid, 0) + textWidth("Walk", size);
+      expect(pointOf(laid, items)).toBeCloseTo(drawnCharX(laid, ing), 6);
+      expect(laid.chords[0]!.x).toBeGreaterThanOrEqual(walkEnd + S.placePad - 1e-6);
+      const h = hyphens(laid);
+      expect(h).toHaveLength(1);
+      expect(h[0]!.x).toBeGreaterThan(walkEnd);
+      expect(h[0]!.x + runsWidth(h[0]!.runs)).toBeLessThan(drawnCharX(laid, ing));
     });
 
-    it("'before' a syllable inside a word splits the word with a hyphen", () => {
-      const word = LYRIC.indexOf("Walking");
-      const laid = layoutLine(line([{ at: word + 4, place: "before", items: [chord("D")] }])); // "Walk|ing"
-      expect(laid.lyrics.some((p) => p.runs[0]!.kind === "text" && p.runs[0]!.text === "-")).toBe(true);
+    it("'before' the first syllable of a line: the lyric starts later to make room (|G before 'You')", () => {
+      const items: ChordLineItem[] = [{ t: "bar" }, chord("G")];
+      const laid = layoutLine(line([{ at: 0, place: "before", items }]));
+      expect(laid.chords[0]!.x).toBeCloseTo(L, 6);
+      expect(drawnCharX(laid, 0)).toBeCloseTo(pointOf(laid, items), 6);
+      expect(drawnCharX(laid, 0)).toBeGreaterThan(L);
     });
 
-    it("before / on / after work on a syllable inside a word too", () => {
-      const ing = LYRIC.indexOf("Walking") + 4; // "Walk|ing"
-      const xs = (["after", "on", "before"] as const).map((place) => {
-        const laid = layoutLine(line([{ at: ing, place, items: [chord("D")] }]));
-        return laid.chords[0]!.x - drawnCharX(laid, ing);
-      });
-      expect(xs[0]!).toBeLessThan(xs[2]!);
-      expect(xs[2]!).toBeLessThan(xs[1]!);
-      const g = groupRuns([chord("D")]).beatPoint!;
-      expect(xs[1]!).toBeCloseTo(textWidth("ing", CHART.lyric.size) / 2 - g, 6);
+    it("'after': the weighted middle sits on the end of the syllable; the next word clears its core (the extension may hang over it)", () => {
+      const road = LYRIC.indexOf("road"); // just after "river"
+      const items = [chord("E", { chord: { root: "E", accidental: "b", quality: "Maj7" } })];
+      const laid = layoutLine(line([{ at: road, place: "after", items }]));
+      const riverEnd = drawnCharX(laid, river) + textWidth("river", size);
+      expect(pointOf(laid, items)).toBeCloseTo(riverEnd + S.afterOffset, 6);
+      const core = groupRuns(items).core!;
+      expect(drawnCharX(laid, road)).toBeGreaterThanOrEqual(laid.chords[0]!.x + core[1] + S.placePad - 1e-6);
+    });
+
+    it("'after' a syllable inside a word: the next syllable moves right with a hyphen", () => {
+      const er = river + 3; // riv|er
+      const items = [chord("G")];
+      const laid = layoutLine(line([{ at: er, place: "after", items }]));
+      const rivEnd = drawnCharX(laid, river) + textWidth("riv", size);
+      expect(pointOf(laid, items)).toBeCloseTo(rivEnd, 6);
+      expect(drawnCharX(laid, er)).toBeGreaterThanOrEqual(laid.chords[0]!.x + widthOf(laid, 0) + S.placePad - 1e-6);
+      expect(hyphens(laid)).toHaveLength(1);
+    });
+
+    it("'after' the last syllable of a line hangs off its end and moves nothing", () => {
+      const items = [chord("G")];
+      const plain = layoutLine(line([]));
+      const laid = layoutLine(line([{ at: LYRIC.length, place: "after", items }]));
+      const end = drawnCharX(laid, LYRIC.indexOf("tonight")) + textWidth("tonight", size);
+      expect(pointOf(laid, items)).toBeCloseTo(end, 6);
+      expect(drawnCharX(laid, LYRIC.length - 1)).toBeCloseTo(drawnCharX(plain, LYRIC.length - 1), 6);
+    });
+
+    it("before / on / after of one syllable come out in that order: its start, middle and end", () => {
+      const items = [chord("G")];
+      const rel = (place: "before" | "on" | "after") => {
+        const laid = layoutLine(line([{ at: place === "after" ? river + 3 : river, place, items }]));
+        return pointOf(laid, items) - drawnCharX(laid, river);
+      };
+      const riv = textWidth("riv", size);
+      expect(rel("before")).toBeCloseTo(0, 6);
+      expect(rel("on")).toBeCloseTo(riv / 2, 6);
+      expect(rel("after")).toBeCloseTo(riv, 6);
+    });
+
+    it("a timed 'before' chord stays on its beat; its syllable moves to it", () => {
+      const down = LYRIC.indexOf("down");
+      const items = [chord("D", { beats: "4&" })]; // later than where "down" falls by itself
+      const above: Anchor[] = [{ at: 0, items: [{ t: "bar" }, chord("G")] }, { at: down, place: "before", items }];
+      const laid = layoutLine(line(above));
+      const natural = layoutLine(line([{ at: 0, items: [{ t: "bar" }, chord("G")] }]));
+      expect(drawnCharX(laid, down)).toBeGreaterThan(drawnCharX(natural, down));
+      expect(drawnCharX(laid, down)).toBeCloseTo(pointOf(laid, items, 1), 6);
     });
   });
 

@@ -114,7 +114,13 @@ export function parseLyricRow(glyphsIn: Glyph[], mainSize: number, flag: (msg: s
   }
 
   // Syllables: words, split where a syllable hyphen was removed and at sung syllables (Walk|ing).
-  for (const m of text.matchAll(/[\p{L}\p{N}'’]+/gu)) for (const st of syllableStarts(m[0], language)) splits.add(m.index + st);
+  // A word the author hyphenated ("a - gree") keeps the author's split only: the
+  // automatic one ("ag|ree") would cut it into pieces that aren't sung.
+  const authorSplits = [...splits];
+  for (const m of text.matchAll(/[\p{L}\p{N}'’]+/gu)) {
+    if (authorSplits.some((s) => s > m.index && s < m.index + m[0].length)) continue;
+    for (const st of syllableStarts(m[0], language)) splits.add(m.index + st);
+  }
   const syllables: Syllable[] = [];
   let k = 0;
   while (k < text.length) {

@@ -197,7 +197,7 @@ export function layoutLine(block: LineBlock, opts: LineOptions = {}): LaidLine {
     const place = anchor.place ?? "on";
     while (marks.length && marks[0]!.at <= at) placeMark(marks.shift()!);
     if (!(place === "on" && at === 0)) enter();
-    const { runs, beatPoint } = groupRuns(anchor.items);
+    const { runs, beatPoint, core } = groupRuns(anchor.items);
     // A group with a beat point (a chord's weighted middle, a "-", a timed
     // stop) centers it over its syllable's middle; others align by their left edge.
     const point = beatPoint ?? 0;
@@ -229,9 +229,13 @@ export function layoutLine(block: LineBlock, opts: LineOptions = {}): LaidLine {
       openGap(x - natural, ins);
       emitUntil(at);
     } else {
-      // "before"/"after": the chord sits over white space between two syllables,
-      // near the one it belongs to. `textEnd` is where the previous syllable's ink ends.
-      // The gap opens before any opening punctuation of the word ("(thanks").
+      // "before"/"after" (owner, 2026-11-10): the chord touches its syllable.
+      // Before: its weighted middle sits on the syllable's start, so it is read
+      // first; after: on the end of the previous syllable, hanging off its right
+      // side. The lyric opens up (with a hyphen inside a word) so the chord keeps
+      // `placePad` from the neighbouring syllable. `textEnd` is where the
+      // previous syllable's ink ends; the gap opens before any opening
+      // punctuation of the word ("(thanks").
       let ins = at;
       // Opening punctuation goes with its word, unless it was already drawn.
       while (ins > charIdx && isOpening(text[ins - 1])) ins--;
@@ -240,12 +244,23 @@ export function layoutLine(block: LineBlock, opts: LineOptions = {}): LaidLine {
       while (ins - spaces > 0 && /\s/.test(text[ins - spaces - 1]!)) spaces++;
       const textEnd = lyricX - (measure(ins - spaces, ins) ?? 0);
       const hasPrev = ins - spaces > 0;
+      // Inside a word the whole chord keeps clear of the neighbouring syllable
+      // (a hyphen fills the gap); between words only its core letters do, and a
+      // "before" chord's core may reach a little over the previous word, as in
+      // the originals (E(m)5 before "gone" overlaps "been" by 4 pt).
+      const midWord = spaces === 0 && hasPrev && isLetter(text[ins - 1]) && isLetter(text[ins]);
+      const [coreL, coreR] = core ?? [0, w];
       if (place === "before") {
-        x = Math.max(lyricX - S.timingNear - w, hasPrev ? textEnd + S.timingFar : left, minX, timeX);
-        openGap(x + w + S.timingNear - lyricX, ins, textEnd);
+        const lead = measure(ins, at) ?? 0;
+        const start = lyricX + lead; // where the syllable's first letter would go
+        const lyricBound = !hasPrev ? left : midWord ? textEnd + S.placePad : textEnd - S.beforeWordOverlap - coreL;
+        const p = Math.max(start + S.beforeOffset, Math.max(lyricBound, minX, timeX, left) + point);
+        x = p - point;
+        openGap(p - S.beforeOffset - start, ins, textEnd);
       } else {
-        x = Math.max(hasPrev ? textEnd + S.timingNear : left, minX, timeX);
-        if (at < text.length) openGap(x + w + S.timingFar - lyricX, ins, textEnd);
+        const p = Math.max(hasPrev ? textEnd + S.afterOffset : left + point, minX + point, timeX + point);
+        x = p - point;
+        if (at < text.length) openGap((midWord ? x + w : x + coreR) + S.placePad - lyricX, ins, textEnd);
       }
     }
     chords.push({ x, runs });

@@ -289,3 +289,12 @@ Started 2026-11-09 (CLAUDE.md §2 item 4). What authors type in the editor; pars
 - Watermark for PDF export (text, placement, who sees which version): not specified, so not added.
 - Symbol choices above (`<`/`>`, `!!`, `@1'`, `*`, `_`, `^`): proposals to confirm.
 - Notation blocks are kept as JSON in the text for now; a short directive syntax (`!notation riff.musicxml bars=1-2 ...`) could come next.
+
+# Before / on / after: the chord touches its syllable (owner, 2026-11-10)
+
+- **On**: the chord's weighted middle on the middle of the syllable (unchanged).
+- **Before**: its weighted middle on the syllable's **start**, so the chord touches the syllable and is read first. Inside a word the word splits with a hyphen and the whole chord keeps `placePad` (2 pt) from the previous syllable; between words the chord's core letter may reach `beforeWordOverlap` (4 pt) back over the previous word, as in the originals. At the start of a line the lyric starts later to make room.
+- **After**: mirrored: its weighted middle on the **end** of the syllable's last letter, hanging off its right side. The next syllable moves right to clear the chord: the whole chord inside a word (with a hyphen), only its core letters between words (an extension like "Maj7" may hang over the next word).
+- A timed chord still sits on its beat; for "before" the syllable moves to it.
+- Measured in the originals (16 pt): SUBG `|G` before "You": weighted middle 1.2 pt before the start; `E(m)5[4&]` before "gone": E overlaps "been" by 4 pt; So Easy `Adim7[2a]` before "gree": 7.6 pt into it (the A is centered on the start), "a" 6 pt clear with the hyphen between; `|EbMaj7` after "dreams": 2.1 pt before its end. Rules: `render.spacing.beforeOffset`, `afterOffset`, `placePad`, `beforeWordOverlap`.
+- **Importer**: a chord is "before" a syllable when its core letters (root, flat/sharp, minor m) straddle the syllable's start by at least `import.straddleMin` (1.5 pt) and its weighted middle is nearer the start than the middle; "after" likewise for the end; otherwise "on". A core covering a short word from edge to edge stays "on". Each before/after read is flagged in review.txt. A word the author hyphenated in the PDF ("a - gree") keeps only the author's split; the automatic split ("ag|ree") is not added on top.

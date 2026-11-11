@@ -52,6 +52,8 @@ Last updated: 2026-11-10.
 
 **Q14. Gray "no bass" chords.** What exact gray? *Now: the lyric gray `#808080`.*
 
+**Q18. How much may placement give way to fit a line?** (owner, 2026-11-10) The originals sometimes bend the spacing rules to keep a line on one row, so not every measured gap or overlap is the rule itself. How far may before/after chords, their clearances (`placePad`, `beforeWordOverlap`) and syllable spacing be squeezed when a line is tight, and in what order relative to the existing steps (rhythm spacing flexes, then narrowing to 82%, then wrapping)? *Now: the placement clearances are fixed and don't flex; only rhythm spacing and narrowing do.* Keep in mind for any new spacing rule; measurements from tight lines in the originals may already be squeezed.
+
 ### Editor
 
 **Q15. Watermark on exported PDFs.** What text, where, and who sees which version? *Now: no watermark.*
@@ -66,7 +68,7 @@ First guesses or measurements from too few samples. Each is in [rules/chart-rule
 
 ### Chart layout
 
-**V1. Before/after chord spacing.** A chord just before or after a syllable sits 2 pt from it and 12 pt from the other side. Check on a real chart. (`render.spacing.timingNear` / `timingFar`)
+**V1. Before/after chords.** A "before" chord's weighted middle sits on the syllable's start, an "after" chord's on its end (offsets 0). Inside a word the chord keeps 2 pt from the neighbouring syllable, with a hyphen; between words a "before" chord's letter may reach 4 pt over the previous word. The importer reads a chord as before/after when its letter sits across the syllable's start/end by at least 1.5 pt and its middle is nearer that edge than the syllable's middle. Check on more charts; So Easy still reads some chords as before/after that may be "on" (they are flagged in review.txt). (`render.spacing.beforeOffset` / `afterOffset` / `placePad` / `beforeWordOverlap`, `import.straddleMin`)
 
 **V2. Chord weights.** Where a chord's "middle" sits on the beat: an extension weighs 0.5 of a root letter, a slash bass 0.25. (`render.chord.extensionWeight` / `bassWeight`)
 

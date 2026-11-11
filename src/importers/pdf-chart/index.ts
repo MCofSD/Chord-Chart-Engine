@@ -234,10 +234,31 @@ function readNote(row: Row, earlier: Section[]): NoteBlock {
 }
 
 /**
- * Pins each chord group to the syllable its beat point sits over (the middle
- * of the nearest syllable); groups in a gap between syllables get "before" or
- * "after"; groups past the lyric go past its end. Then guesses a late lyric
- * entry from the gap after the line's first chord.
+ * How a chord over a syllable is placed (owner, 2026-11-10): a chord whose
+ * core letters (root, flat/sharp, minor "m") straddle the syllable's start is
+ * "before" it (it touches the syllable and is read first); one that straddles
+ * its end is "after" it; anything else is "on" (including a core that covers
+ * a short syllable from edge to edge). "Straddle" means the edge lies inside
+ * the core by at least `margin`, so a chord letter lined up with a word's
+ * first letter still reads as "on". The chord's weighted middle (`point`) must
+ * also be nearer that edge than the syllable's middle, so a chord centered on
+ * a short word whose core happens to reach past its end stays "on".
+ */
+export function placementOf(core: [number, number], point: number, syl: { x0: number; x1: number }, margin: number = I.straddleMin): "before" | "on" | "after" {
+  const mid = (syl.x0 + syl.x1) / 2;
+  const nearEdge = (edge: number) => Math.abs(point - edge) < Math.abs(point - mid);
+  const inside = (edge: number) => edge > core[0] + margin && edge < core[1] - margin;
+  const start = inside(syl.x0), end = inside(syl.x1);
+  if (start && !end && nearEdge(syl.x0)) return "before";
+  if (end && !start && nearEdge(syl.x1)) return "after";
+  return "on";
+}
+
+/**
+ * Pins each chord group to the syllable its beat point sits over: on it,
+ * just before it or just after it (placementOf); groups in a gap between
+ * syllables get "before" or "after"; groups past the lyric go past its end.
+ * Then guesses a late lyric entry from the gap after the line's first chord.
  */
 function buildLine(groups: ParsedGroup[], lyric: ParsedLyric | undefined, flag: (m: string) => void): LineBlock {
   const above: Anchor[] = [];
@@ -253,15 +274,26 @@ function buildLine(groups: ParsedGroup[], lyric: ParsedLyric | undefined, flag: 
     if (!last || x > last.x1 + between) at = textLen;
     else {
       const near = syl.reduce((a, b) => (Math.abs(b.mid - x) < Math.abs(a.mid - x) ? b : a));
-      if (x >= near.x0 - between && x <= near.x1 + between) at = near.start;
-      else {
+      const word = (s: { start: number; end: number }) => `"${lyric!.text.slice(s.start, s.end)}"`;
+      if (x >= near.x0 - between && x <= near.x1 + between) {
+        const how = g.core ? placementOf(g.core, x, near) : "on";
+        if (how === "after") {
+          // "After" pins the chord to the start of the next syllable.
+          const k = syl.indexOf(near);
+          at = syl[k + 1]?.start ?? textLen;
+          place = "after";
+        } else {
+          at = near.start;
+          if (how === "before") place = "before";
+        }
+        if (place && g.hasChord) flag(`chord read as just ${place} ${word(near)} (its letter sits across the syllable's ${place === "before" ? "start" : "end"}); check`);
+      } else {
         const next = syl.find((s) => s.x0 > x)!;
         const prev = [...syl].reverse().find((s) => s.x1 < x);
         at = next.start;
         if (prev) {
           place = next.x0 - x < x - prev.x1 ? "before" : "after";
           if (g.hasChord) {
-            const word = (s: { start: number; end: number }) => `"${lyric!.text.slice(s.start, s.end)}"`;
             flag(`chord between syllables: placed just ${place === "before" ? `before ${word(next)}` : `after ${word(prev)}`}; check`);
           }
         }

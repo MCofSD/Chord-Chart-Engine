@@ -19,11 +19,13 @@ export interface ParsedGroup {
   x1: number;
   /** Where the group's beat sits in the source, if it has one. */
   point: number | undefined;
+  /** Left and right edge of the first chord's core letters (root, flat/sharp, minor "m"). */
+  core?: [number, number];
   hasChord: boolean;
   alignRight?: boolean;
 }
 
-interface Tok { item: ChordLineItem; x0: number; x1: number; point?: number }
+interface Tok { item: ChordLineItem; x0: number; x1: number; point?: number; core?: [number, number] }
 
 const mid = (g: Glyph) => (g.x0 + g.x1) / 2;
 const minorRe = new RegExp(S.minorPattern);
@@ -98,15 +100,16 @@ export function parseChordRow(glyphsIn: Glyph[], baseline: number, mainSize: num
     if (root && S.chordRoots.includes(root.ch) && big(root) && !raised(root) && (colorName(root.color) === "black" || colorName(root.color) === "gray")) {
       const chord: ChordName = { root: root.ch };
       const core: number[] = [mid(root)];
+      let coreEnd = root.x1;
       let j = rootAt + 1;
       const acc = gs[j];
       if (acc && !raised(acc) && acc.x0 - root.x1 < 2 && (S.flat.includes(acc.ch) || S.sharp.includes(acc.ch)) && (acc.size < root.size || S.sharp.includes(acc.ch))) {
-        chord.accidental = S.flat.includes(acc.ch) ? "b" : "#"; core.push(mid(acc)); j++;
+        chord.accidental = S.flat.includes(acc.ch) ? "b" : "#"; core.push(mid(acc)); coreEnd = acc.x1; j++;
       }
       let quality = "", ext: [number, number] | undefined;
       while (j < gs.length && raised(gs[j]!) && gs[j]!.ch !== "[" && gs[j]!.x0 - (gs[j - 1]!.x1) < 3) {
         const q = gs[j]!;
-        if (quality === "" && q.ch === "m" && minorRe.test("m" + (gs[j + 1]?.ch ?? ""))) core.push(mid(q));
+        if (quality === "" && q.ch === "m" && minorRe.test("m" + (gs[j + 1]?.ch ?? ""))) { core.push(mid(q)); coreEnd = q.x1; }
         else ext = ext ? [ext[0], q.x1] : [q.x0, q.x1];
         quality += q.ch; j++;
       }
@@ -136,7 +139,7 @@ export function parseChordRow(glyphsIn: Glyph[], baseline: number, mainSize: num
       let sum = core.reduce((a, b) => a + b, 0), total = core.length;
       if (ext) { sum += K.extensionWeight * (ext[0] + ext[1]) / 2; total += K.extensionWeight; }
       if (bass) { sum += K.bassWeight * (bass[0] + bass[1]) / 2; total += K.bassWeight; }
-      toks.push({ item, x0: parenOpen ? g.x0 : root.x0, x1, point: sum / total });
+      toks.push({ item, x0: parenOpen ? g.x0 : root.x0, x1, point: sum / total, core: [root.x0, coreEnd] });
       continue;
     }
 
@@ -247,11 +250,12 @@ export function parseChordRow(glyphsIn: Glyph[], baseline: number, mainSize: num
       (t.item.t === "chord" && !onlyLead) ||
       (t.item.t === "same" && !onlyLead) ||
       t.x0 - cur.x1 > I.groupGap;
-    if (startsNew) groups.push({ items: [t.item], x0: t.x0, x1: t.x1, point: t.point, hasChord: t.item.t === "chord" });
+    if (startsNew) groups.push({ items: [t.item], x0: t.x0, x1: t.x1, point: t.point, hasChord: t.item.t === "chord", ...(t.core ? { core: t.core } : {}) });
     else {
       cur.items.push(t.item);
       cur.x1 = Math.max(cur.x1, t.x1);
       if (cur.point === undefined && t.point !== undefined) cur.point = t.point;
+      if (!cur.core && t.core) cur.core = t.core;
       if (t.item.t === "chord") cur.hasChord = true;
     }
   }
