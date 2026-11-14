@@ -1,14 +1,14 @@
-# CLAUDE.md: Musicians' Club Chord Chart App
+# CLAUDE.md: Musicians' Club Song Chart App
 
 Last updated: 2026-11-08. This file is the project brief. Read it fully before writing code. 
 
 ## 1. Project goal
 
-Musicians' Club (musiciansclub.com, San Diego) publishes about 400 "gig-ready" chord charts as PDFs. Today each chart is made by hand:
+Musicians' Club (musiciansclub.com, San Diego) publishes about 400 "gig-ready" Song Charts as PDFs. Today each Song Chart is made by hand:
 
 - Chart body: a Word document exported to PDF.
 - Notation snippets (riffs, intros): produced in **Cubase**, exported as PNG, placed in Word.
-- Cover page chord diagrams: drawn as vectors in **CorelDRAW**, exported to PNG/SVG, pasted into a Word cover template.
+- Cover page Chord Diagrams: drawn as vectors in **CorelDRAW**, exported to PNG/SVG, pasted into a Word cover template.
 
 We are building one application that replaces this workflow. Requirements:
 
@@ -21,15 +21,15 @@ We are building one application that replaces this workflow. Requirements:
 
 The website is WordPress/Elementor with a membership plugin. Charts are member-gated. Decision pending: publish from this tool into WordPress, or replace parts of it. Default assumption: publish into WordPress (lower risk).
 
-## 2. Current scope: Diagram generator first
+## 2. Current scope: Chord Diagram generator first
 
 Build order:
 
-1. **Chord diagram generator** (this is the current task, see section 6).
+1. **Chord Diagram generator** (this is the current task, see section 6).
 2. Cover layout solver (4 to 8 columns, 1 or 2 pages).
-3. Chart renderer (chords over lyrics, bars, beat tags, notation snippets).
+3. Song Chart renderer (chords over lyrics, bars, beat tags, notation snippets).
 4. Text editor with live preview, PDF export with watermark.
-5. Importer for existing charts and covers (PDF-based, semi-automated).
+5. Importer for existing Song Charts and covers (PDF-based, semi-automated).
 6. Library, contributor workflow, native notation (optional).
 
 Do not start items 3 and later until asked.
@@ -42,7 +42,7 @@ Status (2026-11-09, later): native notation phase 1 done: `notation` blocks (Mus
 
 Status (2026-11-09): rhythm spacing done (NOTES.md). Item 5 started at the owner's request: a PDF chart importer (`src/importers/pdf-chart/`, `npm run import-chart`). **All formatting rules live in `rules/chart-rules.json`**, read by both the renderer and the importer; a rule change must need no code change in either (owner). Put new rules there, not in code.
 
-Status (2026-11-09, latest): item 4 phase 1 done: chart text format (chords over lyrics; `src/text-format/`, spec in NOTES.md, symbols awaiting owner review) and a self-contained editor page with live preview and Print to PDF (`npm run editor` builds `chart-editor.html`, gitignored). Watermark not specified yet.
+Status (2026-11-09, latest): item 4 phase 1 done: chart text format (chords over lyrics; `src/text-format/`, spec in NOTES.md, symbols awaiting owner review) and a self-contained editor page with live preview and Print to PDF (`npm run editor` builds `song-editor.html`, gitignored). Watermark not specified yet.
 
 ## 3. Sample files (ground truth)
 
@@ -60,11 +60,11 @@ samples/
   legend/     Music Legend (image from the 24K Magic cover; the PDF version has unreadable fonts)
 ```
 
-The sample charts contain copyrighted lyrics. **The repo is public** (owner, 2026-11-09): song charts (.pdf, chart .docx) and any fixture with lyrics are **local-only**, listed in `.gitignore`, and must never be committed. Code and tests that need them must skip cleanly when they are missing. Do not copy lyrics into tests, docs, or commit messages. The Corel SVGs and the cover templates contain no lyrics and stay in the repo.
+The sample charts contain copyrighted lyrics. **The repo is public** (owner, 2026-11-09): Song Charts (.pdf, chart .docx) and any fixture with lyrics are **local-only**, listed in `.gitignore`, and must never be committed. Code and tests that need them must skip cleanly when they are missing. Do not copy lyrics into tests, docs, or commit messages. The Corel SVGs and the cover templates contain no lyrics and stay in the repo.
 
 ## 4. Source-file facts (what the existing files really are)
 
-### 4.1 Chart Word files (verified on 5 files)
+### 4.1 Song Chart Word files (verified on 5 files)
 
 - No styles, no tables. One paragraph per section (Intro, Verse, Chorus...), lines separated by soft line breaks; section dividers are paragraph borders (color A6A6A6).
 - Chords are aligned over lyrics using **tab characters** (default tab stops). Chord-to-syllable position is implicit, recoverable only from rendered geometry.
@@ -126,7 +126,7 @@ Symbols (confirmed by the Legend):
 
 Used in charts but **not defined in the Legend** (confirm with the owner before encoding): `|` bar line and `| -` (repeat of same chord for another bar); `(+Bnd)`, `(-Drm)` add/remove an instrument; `(NC)`; `(simile)`; `(ritard)`; the down-arrow mark; parentheses for ad-libs; inline meter changes (stacked red numbers); instrument abbreviations (Bnd, Drm, Gtr, RGtr, LGtr, Bss, Snr, Pno, Org, Hrn, Prcn, KD, XStk, Synth, E. Piano).
 
-## 6. Task: chord diagram generator
+## 6. Task: Chord Diagram generator
 
 ### 6.1 Deliverables
 

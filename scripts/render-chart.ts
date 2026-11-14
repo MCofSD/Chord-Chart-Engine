@@ -27,4 +27,4 @@ writePagePngs(cover.pages, imageDir, outDir, `${name}-cover`);
 writePdf([...cover.pages, ...pages], imageDir, join(outDir, `${name}.pdf`));
 for (const w of [...cover.warnings, ...warnings]) console.warn("warning:", w);
 const coverNote = cover.pages.length ? ` (${cover.pages.length} cover page(s) first: ${name}-cover-p*.svg/png)` : "";
-console.log(`wrote ${pages.length} chart page(s) to ${outDir}: ${name}-p*.svg, ${name}-p*.png, ${name}.pdf${coverNote}`);
+console.log(`wrote ${pages.length} Song Chart page(s) to ${outDir}: ${name}-p*.svg, ${name}-p*.png, ${name}.pdf${coverNote}`);

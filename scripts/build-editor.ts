@@ -1,10 +1,10 @@
 /**
- * Builds chart-editor.html: the chart text editor with live preview, as one
+ * Builds song-editor.html: the chart text editor with live preview, as one
  * self-contained page (renderer, fonts, logo and music font inlined; opens
  * from disk, no server). The output is several MB and gitignored; rebuild
  * after code or rules changes.
  *
- * Run: npm run editor, then open chart-editor.html in Chrome or Edge.
+ * Run: npm run editor, then open song-editor.html in Chrome or Edge.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -61,7 +61,7 @@ const html = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Chart editor</title>
+<title>Song Chart editor</title>
 <style>
 ${fontFaces}
 :root{--bg:#eef1f5;--fg:#1c2430;--mut:#566273;--card:#fff;--line:#c9d2de;--navy:#1b4f8c;--acc:#1b4f8c;--bad:#b3261e;color-scheme:light}
@@ -132,28 +132,28 @@ details td{padding:2px 10px 2px 0;vertical-align:top}
 </head>
 <body>
 <header>
-<h1>Chart editor</h1>
+<h1>Song Chart editor</h1>
 <span id="file-name"></span>
 <button type="button" id="new">New</button>
 <button type="button" id="open">Open…</button>
 <button type="button" id="add">Add files…</button>
 <button type="button" id="save">Save</button>
-<button type="button" id="save-json" title="Save the chart as JSON, the file the importer and renderer use">Save as JSON</button>
+<button type="button" id="save-json" title="Save the Song Chart as JSON, the file the importer and renderer use">Save as JSON</button>
 <label class="follow"><input type="checkbox" id="follow" checked> Chords follow their syllables</label>
 <button type="button" id="print" class="primary">Print / Save as PDF</button>
 <input type="file" id="open-input" accept=".txt,.json" hidden>
 <input type="file" id="files-input" accept=".png,.jpg,.jpeg,.musicxml,.xml,.mxl" multiple hidden>
 </header>
 <main>
-<section class="edit" aria-label="Chart text">
-<textarea id="text" spellcheck="false" aria-label="Chart text" autocapitalize="off" autocomplete="off"></textarea>
+<section class="edit" aria-label="Song Chart text">
+<textarea id="text" spellcheck="false" aria-label="Song Chart text" autocapitalize="off" autocomplete="off"></textarea>
 <div class="below">
 <h2>Problems <span id="problem-count"></span></h2>
 <ul id="problems" aria-live="polite"></ul>
 <p id="status"></p>
 <p id="file-list"></p>
 <details>
-<summary>How to write a chart</summary>
+<summary>How to write a Song Chart</summary>
 <table>
 <tr><td><code>Title: …</code></td><td>Header lines at the top: Title, Artist, Year, Key, Original key, BPM, Meter, Tuning, Language, Syllables, Date.</td></tr>
 <tr><td><code>Syllables: de-di-cat-ed, fire</code></td><td>How this song splits words into sung syllables, where it differs from the automatic split (no hyphen = one syllable). Also set from the menu when you click a word.</td></tr>
@@ -214,5 +214,5 @@ details td{padding:2px 10px 2px 0;vertical-align:top}
 </html>
 `;
 
-writeFileSync("chart-editor.html", html);
-console.log(`chart-editor.html written (${(html.length / 1024 / 1024).toFixed(1)} MB)`);
+writeFileSync("song-editor.html", html);
+console.log(`song-editor.html written (${(html.length / 1024 / 1024).toFixed(1)} MB)`);

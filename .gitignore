@@ -16,4 +16,6 @@ test/fixtures/charts/subg-chorus.json
 local/
 
 # Built editor page (several MB, fonts inlined): npm run editor
+song-editor.html
+# The editor page's old name, so stale local copies stay out of git
 chart-editor.html

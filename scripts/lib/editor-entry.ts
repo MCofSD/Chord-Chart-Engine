@@ -1,5 +1,5 @@
 /**
- * Browser entry for chart-editor.html (built by scripts/build-editor.ts):
+ * Browser entry for song-editor.html (built by scripts/build-editor.ts):
  * type a chart in the text format on the left, see the cover and chart pages
  * on the right, as they will print. Uses the same parser and renderers as the
  * command-line tools.
@@ -87,10 +87,10 @@ function render(): void {
     const warnings = [...cover.warnings, ...body.warnings];
     if (missing.size) warnings.unshift(`images not added yet: ${[...missing].join(", ")} (use "Add files")`);
     showProblems(problems, warnings);
-    statusEl.textContent = `${cover.pages.length} cover + ${body.pages.length} chart page(s), drawn in ${Math.round(performance.now() - t0)} ms`;
+    statusEl.textContent = `${cover.pages.length} cover + ${body.pages.length} Song Chart page(s), drawn in ${Math.round(performance.now() - t0)} ms`;
   } catch (e) {
     // Keep the last good pages; say what went wrong.
-    showProblems(problems, [`could not draw the chart: ${e instanceof Error ? e.message : String(e)}`]);
+    showProblems(problems, [`could not draw the Song Chart: ${e instanceof Error ? e.message : String(e)}`]);
     statusEl.textContent = "Showing the last pages that could be drawn.";
   }
 }
@@ -129,7 +129,7 @@ async function openFile(file: File): Promise<void> {
     try {
       setText(writeChartText(JSON.parse(src) as Chart), file.name.replace(/\.json$/i, ".chart.txt"));
     } catch (e) {
-      alert(`${file.name} is not a chart JSON file: ${e instanceof Error ? e.message : String(e)}`);
+      alert(`${file.name} is not a Song Chart JSON file: ${e instanceof Error ? e.message : String(e)}`);
     }
   } else setText(src, file.name);
 }
@@ -166,7 +166,7 @@ async function writeFile(blob: Blob, name: string, type: SaveType, handle?: File
 
 async function save(): Promise<void> {
   const blob = new Blob([text.value], { type: "text/plain;charset=utf-8" });
-  const h = await writeFile(blob, fileName, { description: "Chart text", accept: { "text/plain": [".txt"] } }, saveHandle);
+  const h = await writeFile(blob, fileName, { description: "Song Chart text", accept: { "text/plain": [".txt"] } }, saveHandle);
   if (!h) return;
   saveHandle = h;
   fileName = h.name;
@@ -189,7 +189,7 @@ async function saveJson(): Promise<void> {
     return;
   }
   const blob = new Blob([JSON.stringify(chart, null, 2) + "\n"], { type: "application/json" });
-  const h = await writeFile(blob, jsonName(), { description: "Chart JSON", accept: { "application/json": [".json"] } }, jsonHandle);
+  const h = await writeFile(blob, jsonName(), { description: "Song Chart JSON", accept: { "application/json": [".json"] } }, jsonHandle);
   if (h) jsonHandle = h;
 }
 
@@ -496,7 +496,7 @@ $("save").addEventListener("click", () => void save());
 $("save-json").addEventListener("click", () => void saveJson());
 $("print").addEventListener("click", () => window.print());
 $("new").addEventListener("click", () => {
-  if (confirm("Start over from the example chart? Unsaved changes are lost.")) { saveHandle = undefined; jsonHandle = undefined; setText(starter(), "chart.chart.txt"); }
+  if (confirm("Start over from the example Song Chart? Unsaved changes are lost.")) { saveHandle = undefined; jsonHandle = undefined; setText(starter(), "chart.chart.txt"); }
 });
 
 let draft: { name: string; text: string } | undefined;

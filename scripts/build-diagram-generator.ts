@@ -25,7 +25,7 @@ const html = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Chord diagram generator</title>
+<title>Chord Diagram generator</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Arimo:ital,wght@0,400;0,700;1,400&display=swap">
 <style>
 :root{--bg:#f5f7fa;--fg:#1c2430;--mut:#566273;--card:#fff;--line:#c9d2de;--navy:#1b4f8c;--blue:#cfe3f5;--acc:#1b4f8c;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -59,8 +59,8 @@ ul{margin:0 0 12px;padding-left:20px;max-width:68ch}
 </head>
 <body>
 <main>
-<h1>Chord diagram generator</h1>
-<p>Each diagram below is drawn from a voicing record by the same renderer that draws the cover pages. Change the data and the diagram updates.</p>
+<h1>Chord Diagram generator</h1>
+<p>Each Chord Diagram below is drawn from a voicing record by the same renderer that draws the cover pages. Change the data and the diagram updates.</p>
 
 <h2>The four samples, drawn from data</h2>
 <div class="panel">

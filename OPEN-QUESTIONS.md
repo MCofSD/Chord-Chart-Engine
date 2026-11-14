@@ -44,7 +44,7 @@ Last updated: 2026-11-10.
 
 **Q11. The starter voicing library.** About 370 generated shapes in `src/voicings/library.json` need your approval; each chart lists the unapproved shapes its cover uses. Some chords have no shape yet (G and G#/Ab sus2 and 7sus2; G#/Ab 6; G#/Ab, A and A#/Bb 9). *Now: generated shapes are used, missing ones get an empty diagram.*
 
-### Charts
+### Song Charts
 
 **Q12. A third repeated riff.** What color? *Now: light blue is reused.*
 
@@ -58,7 +58,7 @@ Last updated: 2026-11-10.
 
 **Q15. Watermark on exported PDFs.** What text, where, and who sees which version? *Now: no watermark.*
 
-**Q16. Editor symbols.** The symbols authors type (`<` `>`, `!!` for stop and hold, `@1'` for the second riff color, `*` for a gray chord, `_` and `^`) are proposals. Keep or change them? See [NOTES.md](NOTES.md#chart-text-format).
+**Q16. Editor symbols.** The symbols authors type (`<` `>`, `!!` for stop and hold, `@1'` for the second riff color, `*` for a gray chord, `_` and `^`) are proposals. Keep or change them? See [NOTES.md](NOTES.md#song-chart-text-format).
 
 **Q17. Notation in the editor.** Notation blocks are kept as raw JSON in the chart text. Want a short line format instead (e.g. `!notation riff.musicxml bars=1-2`)?
 
@@ -66,7 +66,7 @@ Last updated: 2026-11-10.
 
 First guesses or measurements from too few samples. Each is in [rules/chart-rules.json](rules/chart-rules.json), so changing one needs no code change.
 
-### Chart layout
+### Song Chart layout
 
 **V1. Before/after chords.** A "before" chord's weighted middle sits on the syllable's start, an "after" chord's on its end (offsets 0). Inside a word the chord keeps 2 pt from the neighbouring syllable, with a hyphen; between words a "before" chord's letter may reach 4 pt over the previous word. The importer reads a chord as before/after when its letter sits across the syllable's start/end by at least 1.5 pt and its middle is nearer that edge than the syllable's middle. Check on more charts; So Easy still reads some chords as before/after that may be "on" (they are flagged in review.txt). (`render.spacing.beforeOffset` / `afterOffset` / `placePad` / `beforeWordOverlap`, `import.straddleMin`)
 

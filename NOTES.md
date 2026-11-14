@@ -1,4 +1,4 @@
-# Diagram generator: notes
+# Chord Diagram generator: notes
 
 Open items (bugs, questions, values to verify) are collected in [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md); the "Open questions" sections below are kept for context.
 
@@ -69,7 +69,7 @@ Superscripts checked in resvg (test) and headless Chrome
 - `diagram-generator.html` is generated (`npm run diagram-generator`): the real renderer bundled into one page with the four samples and a voicing editor. The earlier hand-written prototype had its own renderer, which drifted (letter "b" for flats, clipped superscript "m"); rebuild the page after renderer changes.
 - `src/diagram/metrics.ts` is generated: `npx tsx scripts/gen-metrics.ts`. Fixtures are regenerated with `npx tsx scripts/import-samples.ts --write` (check the diff by hand).
 
-# Chart renderer (phase 1): notes
+# Song Chart renderer (phase 1): notes
 
 Started 2026-11-08 (CLAUDE.md §2 item 3; the cover layout solver, item 2, is still to do). Code: `src/model/chart.ts` (data), `src/chart/` (layout and SVG), `src/legend/registry.ts` (symbols). Output: one SVG per US Letter page, deterministic, no browser.
 
@@ -120,7 +120,7 @@ All values are in [src/chart/tokens.ts](src/chart/tokens.ts). Highlights:
 
 Side-by-side images: `test/output/chart-chorus-*.png`, and in `preview/index.html`.
 
-## Differences from today's charts
+## Differences from today's Song Charts
 
 - Inconsistencies in the files were unified: label size 9 pt (Awitin uses 11), rules gray `#A6A6A6` (Awitin's are black), superscript raise 5.5 pt (some Arial Narrow runs use 3.9).
 - The slash in `C7/E` is tucked under the superscript (matching the covers), so slash chords are a little narrower than in the files.
@@ -135,7 +135,7 @@ Side-by-side images: `test/output/chart-chorus-*.png`, and in `preview/index.htm
 5. A color for a fourth repeated section, if ever needed (purple is reused for now).
 6. The `before`/`after` spacing (2 pt near, 12 pt far) is a first guess; check it on a real chart.
 
-# Formatting rules file and PDF chart importer
+# Formatting rules file and PDF Song Chart importer
 
 ## Rules file (owner, 2026-11-09)
 
@@ -146,7 +146,7 @@ All formatting rules live in [rules/chart-rules.json](rules/chart-rules.json), r
 
 Moving the values into JSON changed no output: the demo, the chorus fixture and the local Since U Been Gone chart render byte-for-byte the same.
 
-## PDF chart importer
+## PDF Song Chart importer
 
 `npm run import-chart -- "<chart.pdf>" [outDir]` writes the chart JSON, its notation images, a PDF and page PNGs of our rendering, `review.txt` and a side-by-side `compare-p<N>.png` (original left, our render right) to `local/imports/<name>/` (gitignored). Re-running replaces that folder's outputs (owner, 2026-11-09). Code: [src/importers/pdf-chart/](src/importers/pdf-chart/).
 
@@ -239,7 +239,7 @@ The four Word cover templates in `samples/` were exported to PDF with Word (read
 - Do "(m)5" and "5(m)" mean a power chord? (aliased to "5" for now.)
 - Does a bass change ("/E" with no chord) need its own diagram? Each one gets one now ("C/E").
 
-# Chart text format
+# Song Chart text format
 
 Started 2026-11-09 (CLAUDE.md §2 item 4). What authors type in the editor; parsed by `src/text-format/parse.ts`, written by `src/text-format/write.ts` (so imported charts open as text). Owner decision (2026-11-09): **chords over lyrics**, as on the printed chart. Every symbol below is a proposal until the owner signs off. (verify)
 
@@ -272,7 +272,7 @@ Started 2026-11-09 (CLAUDE.md §2 item 4). What authors type in the editor; pars
 
 ## Editor (phase 1)
 
-- `chart-editor.html`, built by `npm run editor` (`scripts/build-editor.ts`, entry `scripts/lib/editor-entry.ts`): one self-contained page, no server. Fonts (Arimo, Carlito, TeX Gyre Cursor) are embedded because Chrome blocks fonts from `file://`; about 7 MB, so it is gitignored.
+- `song-editor.html`, built by `npm run editor` (`scripts/build-editor.ts`, entry `scripts/lib/editor-entry.ts`): one self-contained page, no server. Fonts (Arimo, Carlito, TeX Gyre Cursor) are embedded because Chrome blocks fonts from `file://`; about 7 MB, so it is gitignored.
 - The renderer runs unchanged in the browser: the bundle swaps `node:fs` (cover logo, Bravura) and `node:module` (hyphenation patterns) for stand-ins in `scripts/lib/browser/`. German patterns (730 KB) are left out of the page; German lyrics fall back to the built-in syllable rule there.
 - The preview redraws 250 ms after typing stops (about 30-40 ms for the demo); if drawing fails, the last good pages stay up.
 - PDF: the browser's Print to PDF (`@page` Letter, no margins), cover first. Text stays text (selectable), unlike the 300 dpi images of `scripts/render-chart.ts`.
