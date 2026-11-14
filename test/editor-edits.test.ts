@@ -3,7 +3,7 @@ import { fitLine } from "../src/chart/line.js";
 import { renderChart } from "../src/chart/render.js";
 import type { LineBlock } from "../src/model/chart.js";
 import { lyricText } from "../src/text-format/canonical.js";
-import { chordAt, setChordAt, setSyllables, splitOf, type ChordTarget } from "../src/text-format/edit.js";
+import { chordAt, lineStartAt, setChordAt, setLineStart, setSyllables, splitOf, type ChordTarget } from "../src/text-format/edit.js";
 import { parseChartText, writeChartText } from "../src/text-format/index.js";
 import { relink } from "../src/text-format/link.js";
 import { lineTiming } from "../src/chart/timing.js";
@@ -203,6 +203,51 @@ describe("page tags for clicking (annotate)", () => {
     const chart = parseChartText(HEAD + "G\nla la\n").chart;
     expect(renderChart(chart, { annotate: true }).pages[0]).toMatch(/<g data-lyric="0:0:0">/);
     expect(renderChart(chart).pages[0]).not.toMatch(/data-lyric/);
+  });
+
+  it("marks the space left of each line's lyric only when asked", () => {
+    const chart = parseChartText(HEAD + "G\nla la\n\nC\nla la la\n").chart;
+    const page = renderChart(chart, { annotate: true }).pages[0]!;
+    expect(page.match(/<rect data-line-start="0:\d+"/g)).toHaveLength(2);
+    expect(renderChart(chart).pages[0]).not.toMatch(/data-line-start/);
+  });
+});
+
+describe("setLineStart (click the space before a line's lyric)", () => {
+  const src = HEAD + "|G          C\nWalking down the river\n";
+  const edit = (s: string, change: { group?: string; entry?: string }) => {
+    const r = setLineStart(s, 0, 0, change);
+    if ("error" in r) throw new Error(r.error);
+    return r.text;
+  };
+
+  it("reads the beat-1 chord over the first syllable, and the lyric entry", () => {
+    expect(lineStartAt(src, 0, 0)).toEqual({ group: "|G" });
+    expect(lineStartAt(HEAD + "|G       C\n@2 Walking down\n", 0, 0)).toEqual({ group: "|G", entry: "2" });
+    expect(lineStartAt(HEAD + "      C\nWalking down\n", 0, 0)).toEqual({}); // C is on "ing", not the start
+  });
+
+  it("moves the lyric to a later beat, keeping the chord on beat 1 at the left edge", () => {
+    const out = edit(src, { group: "|G", entry: "2" });
+    expect(line(out).lyricEntry).toBe("2");
+    expect(anchors(line(out))).toEqual(["|G@0", "C@12"]);
+  });
+
+  it("adds a beat-1 chord before a lyric that had none there", () => {
+    const out = edit(HEAD + "      C\nWalking down\n", { group: "|Em", entry: "2" });
+    expect(anchors(line(out))).toEqual(["|Em@0", "C@6"]);
+    expect(line(out).lyricEntry).toBe("2");
+  });
+
+  it("changes or removes the chord, and an empty beat puts the lyric back on the bar", () => {
+    const late = edit(src, { group: "|G", entry: "2" });
+    expect(anchors(line(edit(late, { group: "|Am", entry: "2" })))).toEqual(["|Am@0", "C@12"]);
+    expect(anchors(line(edit(late, { entry: "2" })))).toEqual(["C@12"]);
+    expect(line(edit(late, { group: "|G" })).lyricEntry).toBeUndefined();
+  });
+
+  it("rejects a beat it can't read", () => {
+    expect(setLineStart(src, 0, 0, { group: "|G", entry: "x" })).toHaveProperty("error");
   });
 });
 

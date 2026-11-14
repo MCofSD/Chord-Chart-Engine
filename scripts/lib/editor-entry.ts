@@ -11,7 +11,7 @@ import type { Chart, NotationBlock } from "../../src/model/chart.js";
 import { renderNotation, type NotationRender } from "../../src/notation/render.js";
 import { parseChartText, writeChartText, type Problem } from "../../src/text-format/index.js";
 import { lyricText } from "../../src/text-format/canonical.js";
-import { chordAt, setChordAt, setSyllables, splitOf, type ChordTarget, type Place } from "../../src/text-format/edit.js";
+import { chordAt, lineStartAt, setChordAt, setLineStart, setSyllables, splitOf, type ChordTarget, type Place } from "../../src/text-format/edit.js";
 import { relink } from "../../src/text-format/link.js";
 import { syllableAt, type SyllableSpan } from "../../src/text/syllables.js";
 import demo from "../../test/fixtures/charts/demo.json" with { type: "json" };
@@ -247,6 +247,9 @@ const menu = $("chord-menu");
 const menuInput = $<HTMLInputElement>("chord-input");
 const menuError = $("chord-error");
 const sylInput = $<HTMLInputElement>("syl-input");
+const entryInput = $<HTMLInputElement>("entry-input");
+/** Set when the menu is for the start of a line (the space left of its lyric), not a syllable. */
+let lineStart: { section: number; block: number; group: string; entry: string; rect: Element } | undefined;
 let target: ChordTarget | undefined;
 /** The clicked syllable's chord, word and current split, when the menu opened. */
 let menuExisting: { group: string; place: Place } | undefined;
@@ -263,6 +266,8 @@ function setPlace(p: Place): void {
 function closeMenu(): void {
   menu.hidden = true;
   target = undefined;
+  lineStart?.rect.classList.remove("line-hl");
+  lineStart = undefined;
   highlight?.remove();
   highlight = undefined;
 }
@@ -332,9 +337,62 @@ pagesEl.addEventListener("mousemove", (e) => {
 });
 pagesEl.addEventListener("mouseleave", () => { cancelAnimationFrame(hoverFrame); clearHover(); });
 
+/** Shows the menu just below the click, inside the preview. */
+function openMenuAt(e: MouseEvent, mode: "syllable" | "line"): void {
+  $("syl-part").hidden = mode !== "syllable";
+  $("entry-part").hidden = mode !== "line";
+  $("chord-label").textContent = mode === "line" ? "Chord on beat 1" : "Chord";
+  menu.setAttribute("aria-label", mode === "line" ? "Start of this line" : "Chord on this syllable");
+  menuError.textContent = "";
+  const preview = $("preview");
+  const box = preview.getBoundingClientRect();
+  menu.hidden = false;
+  const left = Math.min(e.clientX - box.left + preview.scrollLeft - 20, preview.scrollLeft + preview.clientWidth - menu.offsetWidth - 8);
+  menu.style.left = `${Math.max(8, left)}px`;
+  menu.style.top = `${e.clientY - box.top + preview.scrollTop + 16}px`;
+  menuInput.focus();
+  menuInput.select();
+}
+
+/** Click in the space left of a line's lyric: the chord on beat 1 and the beat the lyric comes in on. */
+function openLineStart(e: MouseEvent, rect: Element): void {
+  const [section, block] = rect.getAttribute("data-line-start")!.split(":").map(Number) as [number, number];
+  const now = lineStartAt(text.value, section, block);
+  if (!now) return;
+  lineStart = { section, block, group: now.group ?? "", entry: now.entry ?? "", rect };
+  rect.classList.add("line-hl");
+  $("chord-syllable").textContent = "Start of line";
+  $("chord-where").textContent = shown?.sections[section]?.label || `section ${section + 1}`;
+  menuInput.value = lineStart.group;
+  entryInput.value = lineStart.entry;
+  $("chord-remove").hidden = !lineStart.group;
+  openMenuAt(e, "line");
+}
+
+function applyLineStart(remove: boolean): void {
+  if (!lineStart) return;
+  const group = remove ? "" : menuInput.value.trim();
+  const entry = entryInput.value.trim();
+  if (group === lineStart.group && entry === lineStart.entry) { closeMenu(); return; }
+  const r = setLineStart(text.value, lineStart.section, lineStart.block, { group, entry });
+  if ("error" in r) { menuError.textContent = r.error; return; }
+  closeMenu();
+  const lines = r.text.split("\n");
+  const start = lines.slice(0, r.from - 1).reduce((n, l) => n + l.length + 1, 0);
+  const end = lines.slice(0, r.to).reduce((n, l) => n + l.length + 1, 0) - 1;
+  replaceText(r.text, start, end);
+  baseline = r.text;
+  render();
+}
+
 pagesEl.addEventListener("click", (e) => {
   const h = syllableUnder(e);
-  if (!h) { closeMenu(); return; }
+  if (!h) {
+    const rect = (e.target as Element).closest?.("rect[data-line-start]");
+    closeMenu();
+    if (rect) { clearHover(); openLineStart(e, rect); }
+    return;
+  }
   const { si, bi, lyric, syl } = h;
   closeMenu();
   clearHover();
@@ -351,16 +409,7 @@ pagesEl.addEventListener("click", (e) => {
   $("syl-word").textContent = `“${menuWord}”`;
   setPlace(existing?.place ?? "on");
   $("chord-remove").hidden = !existing;
-  menuError.textContent = "";
-  // Open just below the click, inside the preview.
-  const preview = $("preview");
-  const box = preview.getBoundingClientRect();
-  menu.hidden = false;
-  const left = Math.min(e.clientX - box.left + preview.scrollLeft - 20, preview.scrollLeft + preview.clientWidth - menu.offsetWidth - 8);
-  menu.style.left = `${Math.max(8, left)}px`;
-  menu.style.top = `${e.clientY - box.top + preview.scrollTop + 16}px`;
-  menuInput.focus();
-  menuInput.select();
+  openMenuAt(e, "syllable");
 });
 
 /**
@@ -403,14 +452,18 @@ function applyChord(remove: boolean): void {
 menu.addEventListener("click", (e) => {
   const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button");
   if (!b) return;
+  const apply = (remove: boolean) => (lineStart ? applyLineStart(remove) : applyChord(remove));
   if (b.dataset.place) setPlace(b.dataset.place as Place);
-  else if (b.id === "chord-apply") applyChord(false);
-  else if (b.id === "chord-remove") applyChord(true);
+  else if (b.id === "chord-apply") apply(false);
+  else if (b.id === "chord-remove") apply(true);
   else if (b.id === "chord-cancel") closeMenu();
 });
 menu.addEventListener("keydown", (e) => {
   if (e.key === "Escape") { e.preventDefault(); closeMenu(); }
-  else if (e.key === "Enter" && (e.target === menuInput || e.target === sylInput)) { e.preventDefault(); applyChord(false); }
+  else if (e.key === "Enter" && (e.target === menuInput || e.target === sylInput || e.target === entryInput)) {
+    e.preventDefault();
+    if (lineStart) applyLineStart(false); else applyChord(false);
+  }
 });
 
 // Wiring.

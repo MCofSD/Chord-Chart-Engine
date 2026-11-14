@@ -289,6 +289,7 @@ Started 2026-11-09 (CLAUDE.md §2 item 4). What authors type in the editor; pars
 - Watermark for PDF export (text, placement, who sees which version): not specified, so not added.
 - Symbol choices above (`<`/`>`, `!!`, `@1'`, `*`, `_`, `^`): proposals to confirm.
 - Notation blocks are kept as JSON in the text for now; a short directive syntax (`!notation riff.musicxml bars=1-2 ...`) could come next.
+- **Chord before the lyric** (owner, 2026-11-13): clicking the blank space left of a line's lyric (the label column, or the gap of a late entry) opens a "Start of line" menu: the beat-1 chord and the beat the lyric comes in on (`lyricEntry`, `@2`). The beat-1 chord is the first group over the first syllable (pinned to character 0 when there is an entry). With an annotate render, each line's first row carries a transparent `<rect data-line-start="section:block">` for this; `setLineStart`/`lineStartAt` in `src/text-format/edit.ts`. Chord and label text on the page ignore the pointer in the editor, so they don't block the click.
 
 # Before / on / after: the chord touches its syllable (owner, 2026-11-10)
 

@@ -26,7 +26,8 @@ export interface RenderChartOptions {
   /**
    * For the editor: tag each lyric text piece with where it comes from,
    * `<g data-lyric="section:block:from">`, so a click on the page can find the
-   * syllable. Off for printing and export.
+   * syllable, and mark the blank space left of each line's lyric,
+   * `<rect data-line-start="section:block">`. Off for printing and export.
    */
   annotate?: boolean;
 }
@@ -218,8 +219,9 @@ function blockSvg(b: LaidBlock, top: number, colors: RepeatColors, V: Vertical):
 
   let y = top;
   let out = "";
-  for (const line of b.rows!) {
+  for (const [ri, line] of b.rows!.entries()) {
     let svg = "";
+    const rowTop = y;
     if (line.chords.length) { svg += placedSvg(line.chords, y + V.baseline); y += V.rowHeight; }
     if (line.lyrics.length) {
       const src = b.source;
@@ -234,6 +236,14 @@ function blockSvg(b: LaidBlock, top: number, colors: RepeatColors, V: Vertical):
     if (line.scaleX < 1) {
       const l = P.content.left;
       svg = `<g transform="translate(${fmt(l)} 0) scale(${line.scaleX.toFixed(4)} 1) translate(${fmt(-l)} 0)">${svg}</g>`;
+    }
+    // Editor: the blank space left of the line's lyric (from the page edge), where a
+    // click sets the chord on beat 1 and the beat the lyric comes in on (lyricEntry).
+    // Drawn first, so the line's own text stays on top.
+    if (ri === 0 && b.source !== undefined && line.lyrics.length) {
+      const l = P.content.left;
+      const lyricX = l + (line.lyrics[0]!.x - l) * line.scaleX;
+      svg = `<rect data-line-start="${b.source}" x="0" y="${fmt(rowTop)}" width="${fmt(Math.max(0, lyricX - 1))}" height="${fmt(y - rowTop)}" fill="transparent"/>` + svg;
     }
     out += svg;
   }

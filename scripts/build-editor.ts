@@ -96,12 +96,17 @@ details td{padding:2px 10px 2px 0;vertical-align:top}
 #pages g[data-lyric]{cursor:pointer}
 .syl-hover{fill:#d6e6f8}
 .syl-hl{fill:#ffe48a}
+#pages text{pointer-events:none}
+#pages g[data-lyric] text{pointer-events:auto}
+#pages rect[data-line-start]{cursor:pointer}
+#pages rect[data-line-start]:hover{fill:#d6e6f8}
+#pages rect[data-line-start].line-hl{fill:#ffe48a}
 #chord-menu{position:absolute;z-index:5;width:250px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.25);padding:10px 12px}
 #chord-menu .menu-head{margin:0 0 8px;font-size:14px}
 #chord-where{color:var(--mut);font-size:12px}
 #chord-menu label{display:block;font-size:12px;color:var(--mut)}
 .syl-label{margin-top:10px}
-#syl-input{width:100%;font:14px Arimo,Arial,sans-serif;padding:4px 8px;margin:2px 0 0;border:1px solid var(--line);border-radius:4px;background:var(--card);color:var(--fg)}
+#syl-input,#entry-input{width:100%;font:14px Arimo,Arial,sans-serif;padding:4px 8px;margin:2px 0 0;border:1px solid var(--line);border-radius:4px;background:var(--card);color:var(--fg)}
 #chord-input{width:100%;font:16px Arimo,Arial,sans-serif;padding:5px 8px;margin:2px 0 8px;border:1px solid var(--line);border-radius:4px;background:var(--card);color:var(--fg)}
 .places{display:flex;gap:4px}
 .places button{flex:1;padding:4px 6px}
@@ -116,7 +121,7 @@ details td{padding:2px 10px 2px 0;vertical-align:top}
 @media (max-width:900px){main{grid-template-columns:1fr;grid-template-rows:auto auto}.edit{border-right:0;border-bottom:1px solid var(--line)}textarea{min-height:50vh}.preview{overflow:visible}}
 @page{size:letter;margin:0}
 @media print{
-  header,.edit,#chord-menu,.syl-hl,.syl-hover{display:none}
+  header,.edit,#chord-menu,.syl-hl,.syl-hover,#pages rect[data-line-start]{display:none}
   body,html{display:block;height:auto;background:#fff}
   main{display:block}
   .preview{padding:0;overflow:visible}
@@ -166,7 +171,7 @@ details td{padding:2px 10px 2px 0;vertical-align:top}
 <tr><td><code>{2.</code> <code>}</code> <code>(2x)</code></td><td>Repeat ending, end of ending, times.</td></tr>
 <tr><td><code>Vamp</code> <code>dstrn</code> <code>1/2T</code> <code>(NC)</code> <code>(simile)</code> <code>(ritard)</code></td><td>Legend directions.</td></tr>
 <tr><td><code>(any words)</code> <code>&gt;&gt;(simile)</code></td><td>Free-text instruction; &gt;&gt; puts a group at the right margin.</td></tr>
-<tr><td><code>@2 Lyric…</code></td><td>Lyric comes in on beat 2.</td></tr>
+<tr><td><code>@2 Lyric…</code></td><td>Lyric comes in on beat 2. Also set by clicking the space left of a line's lyric on the page, with the chord on beat 1.</td></tr>
 <tr><td><code>_words_</code> <code>^(words)^</code></td><td>Backup vocals (italic); smaller aside.</td></tr>
 <tr><td><code>pre~~tend</code></td><td>~ (or extra spaces between words) makes room for chords; it is not printed.</td></tr>
 <tr><td><code>2  2&amp;  2:3</code></td><td>Optional line under a lyric: beat of the syllable above (bar:beat).</td></tr>
@@ -180,8 +185,9 @@ details td{padding:2px 10px 2px 0;vertical-align:top}
 <section class="preview" id="preview" aria-label="Preview"><div id="pages"></div>
 <div id="chord-menu" role="dialog" aria-label="Chord on this syllable" hidden>
 <p class="menu-head"><strong id="chord-syllable"></strong> <span id="chord-where"></span></p>
-<label for="chord-input">Chord</label>
+<label for="chord-input" id="chord-label">Chord</label>
 <input id="chord-input" autocomplete="off" spellcheck="false" placeholder="G, |Am7[2&amp;]">
+<div id="syl-part">
 <div class="places" role="group" aria-label="Placement">
 <button type="button" data-place="before" aria-pressed="false">Before</button>
 <button type="button" data-place="on" aria-pressed="true">On</button>
@@ -189,6 +195,11 @@ details td{padding:2px 10px 2px 0;vertical-align:top}
 </div>
 <label for="syl-input" class="syl-label">Syllables of <span id="syl-word"></span></label>
 <input id="syl-input" autocomplete="off" spellcheck="false" placeholder="ded-i-cat-ed">
+</div>
+<div id="entry-part" hidden>
+<label for="entry-input">Lyric comes in on beat</label>
+<input id="entry-input" autocomplete="off" spellcheck="false" placeholder="with the bar (or 2, 3, 1&amp;…)">
+</div>
 <p id="chord-error" role="alert"></p>
 <div class="menu-actions">
 <button type="button" id="chord-apply" class="primary">Apply</button>

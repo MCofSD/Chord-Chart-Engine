@@ -5,9 +5,9 @@
  * new text, with only that line's chord, lyric and rhythm lines rewritten.
  * Pure: no DOM.
  */
-import type { Anchor, Block, LineBlock } from "../model/chart.js";
-import { syllables, type SyllableSpan } from "../text/syllables.js";
-import { canonicalBlock, stableJson } from "./canonical.js";
+import { beatOffset, type Anchor, type Block, type ChartMeta, type LineBlock } from "../model/chart.js";
+import { syllableAt, syllables, type SyllableSpan } from "../text/syllables.js";
+import { canonicalBlock, lyricText, stableJson } from "./canonical.js";
 import { HEADER_KEYS, parseChartText } from "./parse.js";
 import { groupText, parseGroup } from "./tokens.js";
 import { blockLines } from "./write.js";
@@ -103,7 +103,62 @@ export function setChordAt(src: string, target: ChordTarget, change: { group?: s
   return replaceBlock(src, target.section, target.block, next);
 }
 
-const WORD_SPLIT = /^[\p{L}\p{N}'’]+(-[\p{L}\p{N}'’]+)*$/u;
+/**
+ * The group on beat 1 at the start of a line. With a lyric entry it is pinned
+ * to character 0 and stands alone at the left edge; without one it is the
+ * first group over the first syllable (its letter usually sits over the
+ * syllable's second character), which is also on beat 1.
+ */
+function lineStartIndex(block: LineBlock, meta: ChartMeta): number {
+  const first = syllableAt(lyricText(block.lyrics), 0, meta.language, meta.syllables);
+  const end = block.lyricEntry !== undefined ? 1 : Math.max(1, first?.end ?? 1);
+  const i = block.above.findIndex((a) => !a.alignRight && a.place !== "after");
+  return i >= 0 && block.above[i]!.at < end ? i : -1;
+}
+
+/** The chord on beat 1 at the start of a line (as typed), and the beat its lyric comes in on. */
+export function lineStartAt(src: string, section: number, blockIndex: number): { group?: string; entry?: string } | undefined {
+  const { chart } = parseChartText(src);
+  const block = chart.sections[section]?.blocks[blockIndex];
+  if (block?.kind !== "line") return undefined;
+  const a = block.above[lineStartIndex(block, chart.meta)];
+  return {
+    ...(a ? { group: groupText({ items: a.items }).text } : {}),
+    ...(block.lyricEntry !== undefined ? { entry: block.lyricEntry } : {}),
+  };
+}
+
+/**
+ * Sets the start of a line (owner, 2026-11-13: a chord in the empty space
+ * before the lyric): `group` is the chord on beat 1 as typed (undefined or
+ * empty removes it), `entry` the beat the lyric comes in on ("2", "1&";
+ * undefined or empty: with the bar).
+ */
+export function setLineStart(src: string, section: number, blockIndex: number, change: { group?: string; entry?: string }): EditResult {
+  const { chart } = parseChartText(src);
+  const block = chart.sections[section]?.blocks[blockIndex];
+  if (block?.kind !== "line") return { error: "that line was not found in the text" };
+  const next: LineBlock = structuredClone(block);
+  const idx = lineStartIndex(next, chart.meta);
+  const entry = (change.entry ?? "").trim().replace(/^@/, "");
+  if (entry && beatOffset(entry) === undefined) return { error: `“${entry}” is not a beat; type e.g. 2, 3 or 1&` };
+  const typed = (change.group ?? "").trim().replace(/^[<>]+/, "");
+  if (typed) {
+    const p = parseGroup(typed);
+    if ("error" in p) return { error: p.error };
+    if (!p.items.length) return { error: "type a chord, e.g. G or |Am7" };
+    // With a lyric entry the beat-1 group is pinned to character 0; without one it
+    // stays where it was over the first syllable.
+    const anchor: Anchor = { at: !entry && idx >= 0 ? next.above[idx]!.at : 0, items: p.items };
+    if (idx >= 0) next.above[idx] = anchor;
+    else next.above.splice(0, 0, anchor);
+  } else if (idx >= 0) next.above.splice(idx, 1);
+  if (entry) next.lyricEntry = entry;
+  else delete next.lyricEntry;
+  return replaceBlock(src, section, blockIndex, next);
+}
+
+const WORD_SPLIT =/^[\p{L}\p{N}'’]+(-[\p{L}\p{N}'’]+)*$/u;
 
 /** How a word is split into sung syllables for this chart, e.g. "ded-i-cat-ed". */
 export function splitOf(word: string, language: string | undefined, overrides: readonly string[] | undefined): string {
