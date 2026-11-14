@@ -5,10 +5,11 @@
  * new text, with only that line's chord, lyric and rhythm lines rewritten.
  * Pure: no DOM.
  */
-import { beatOffset, type Anchor, type Block, type ChartMeta, type LineBlock } from "../model/chart.js";
+import { beatOffset, resolveRepeats, type Anchor, type Block, type Chart, type ChartMeta, type LineBlock, type NoteBlock, type Section, type SectionRef, type SectionType } from "../model/chart.js";
+import { sectionTypeOf } from "../rules/index.js";
 import { syllableAt, syllables, type SyllableSpan } from "../text/syllables.js";
 import { canonicalBlock, lyricText, stableJson } from "./canonical.js";
-import { HEADER_KEYS, parseChartText } from "./parse.js";
+import { HEADER_KEYS, parseChartText, SECTION_TYPES } from "./parse.js";
 import { groupText, parseGroup } from "./tokens.js";
 import { blockLines } from "./write.js";
 
@@ -199,4 +200,118 @@ export function setSyllables(srcIn: string, word: string, split: string): { text
   } else if (value) lines.splice(last + 1, 0, value);
   const line = value ? (at >= 0 ? at : last + 1) + 1 : undefined;
   return line === undefined ? { text: lines.join("\n") } : { text: lines.join("\n"), line };
+}
+
+// ---- Insert a section or a Repeat line at a divider (owner, 2026-11-14) ----------------
+
+const sectionJson = (s: Section) => stableJson({ type: s.type, label: s.label, blocks: s.blocks.map(canonicalBlock) });
+
+/**
+ * Inserts lines so they become section `at` (0 = before the first section),
+ * trying each candidate in turn, and keeps the first that reads back with
+ * every other section unchanged and the new one passing `check`.
+ * `from`/`to` in the result are the inserted lines (1-based).
+ */
+function insertLines(srcIn: string, at: number, candidates: string[][], check: (s: Section, chart: Chart) => boolean): EditResult {
+  const src = srcIn.replace(/\r\n?/g, "\n");
+  const parsed = parseChartText(src);
+  const { sections } = parsed.chart;
+  if (at < 0 || at > sections.length) return { error: "that place was not found in the chart" };
+  const lines = src.split("\n");
+  // Before section `at`'s first line, or after the last non-blank line.
+  let cut = at < sections.length ? parsed.sectionLines[at]! - 1 : lines.length;
+  while (cut > 0 && lines[cut - 1]!.trim() === "") cut--;
+  const before = lines.slice(0, cut), after = lines.slice(cut);
+  while (after.length && after[0]!.trim() === "") after.shift();
+  const want = sections.map(sectionJson);
+  for (const body of candidates) {
+    const lead = before.length ? [""] : [];
+    const next = [...before, ...lead, ...body, ...(after.length ? ["", ...after] : [""])];
+    const text = next.join("\n");
+    const back = parseChartText(text).chart;
+    if (back.sections.length !== sections.length + 1 || !check(back.sections[at]!, back)) continue;
+    const others = back.sections.filter((_, k) => k !== at).map(sectionJson);
+    if (others.every((j, k) => j === want[k])) {
+      const from = before.length + lead.length + 1;
+      return { text, from, to: from + body.length - 1 };
+    }
+  }
+  return { error: "the change could not be written so it reads back the same; edit the text instead" };
+}
+
+/**
+ * Adds an empty section headed `label` so it becomes section `at`. `type`
+ * is written ("=bridge") only when it differs from the type the label gives.
+ */
+export function insertSection(src: string, at: number, change: { label: string; type?: SectionType }): EditResult {
+  const label = change.label.trim();
+  if (!label) return { error: "type a label, e.g. Chorus or 1st Ver" };
+  if (/[\r\n]/.test(label)) return { error: "the label must be one line" };
+  if (change.type && !SECTION_TYPES.includes(change.type)) return { error: `"${change.type}" is not a section type` };
+  const type = change.type ?? sectionTypeOf(label);
+  const heading = `# ${label}${type !== sectionTypeOf(label) ? ` =${type}` : ""}`;
+  // A section that starts with its own Repeat line (no heading) would join the new,
+  // empty section: the second try gives it an unlabeled "#" heading of its own.
+  return insertLines(src, at, [[heading], [heading, "", "#"]], (s) => s.label === label && s.type === type && s.blocks.length === 0);
+}
+
+/** Earlier sections a Repeat line at `at` can point to: labeled ones, the latest of each label. */
+export function repeatChoices(src: string, at: number): { index: number; label: string; type: SectionType }[] {
+  const out: { index: number; label: string; type: SectionType }[] = [];
+  const seen = new Set<string>();
+  const sections = parseChartText(src).chart.sections.slice(0, Math.max(0, at));
+  for (let i = sections.length - 1; i >= 0; i--) {
+    const s = sections[i]!;
+    if (!s.label || seen.has(s.label)) continue;
+    seen.add(s.label);
+    out.unshift({ index: i, label: s.label, type: s.type });
+  }
+  return out;
+}
+
+/** "Repeat A", "Repeat A and B", "Repeat A, B and C". */
+function repeatPieces(refs: SectionRef[]): NoteBlock["pieces"] {
+  const out: NoteBlock["pieces"] = [{ text: "Repeat " }];
+  refs.forEach((r, k) => {
+    if (k > 0) out.push({ text: k === refs.length - 1 ? " and " : ", " });
+    out.push(r);
+  });
+  return out;
+}
+
+/**
+ * Adds a "Repeat ..." line as its own section at `at`, pointing back to the
+ * earlier sections `targets` (indices, in the order given). `extra` is free
+ * text after the names, e.g. "(2x)".
+ */
+export function insertRepeat(src: string, at: number, change: { targets: number[]; extra?: string }): EditResult {
+  const { sections } = parseChartText(src).chart;
+  if (!change.targets.length) return { error: "pick the section(s) to repeat" };
+  if (at < 0 || at > sections.length) return { error: "that place was not found in the chart" };
+  const before = sections.slice(0, at);
+  const refs: SectionRef[] = [];
+  for (const t of change.targets) {
+    const s = before[t];
+    if (!s) return { error: "a Repeat can only point back to an earlier section" };
+    if (!s.label) return { error: "that section has no label to point to" };
+    refs.push({ section: s.type, text: s.label });
+  }
+  const extra = (change.extra ?? "").trim();
+  if (/[\r\n{}]/.test(extra)) return { error: "the extra text must be one line, without { }" };
+  const pieces = repeatPieces(refs);
+  if (extra) pieces.push({ text: ` ${extra}` });
+  const block: NoteBlock = { kind: "note", pieces };
+  // Name the exact section when its type alone would find a later one of the same type.
+  const probe: Chart = { meta: { title: "", artist: "", key: "" }, sections: [...before, { type: "other", label: "", blocks: [block] }] };
+  const found = resolveRepeats(probe).refs;
+  refs.forEach((r, k) => { if (found.get(r) !== change.targets[k]) r.label = r.text; });
+  const line = blockLines(block, before);
+  const check = (s: Section, chart: Chart) => {
+    if (s.blocks.length !== 1 || stableJson(canonicalBlock(s.blocks[0]!)) !== stableJson(canonicalBlock(block))) return false;
+    const got = resolveRepeats(chart).refs;
+    const mine = (s.blocks[0] as NoteBlock).pieces.filter((p): p is SectionRef => "section" in p);
+    return mine.length === refs.length && mine.every((p, k) => got.get(p) === change.targets[k]);
+  };
+  // After a section with no lines yet, a Repeat line would join it: the second try gives it a "#".
+  return insertLines(src, at, [line, ["#", ...line]], check);
 }

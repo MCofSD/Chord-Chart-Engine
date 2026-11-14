@@ -11,7 +11,9 @@ import type { Chart, NotationBlock } from "../../src/model/chart.js";
 import { renderNotation, type NotationRender } from "../../src/notation/render.js";
 import { parseChartText, writeChartText, type Problem } from "../../src/text-format/index.js";
 import { lyricText } from "../../src/text-format/canonical.js";
-import { chordAt, lineStartAt, setChordAt, setLineStart, setSyllables, splitOf, type ChordTarget, type Place } from "../../src/text-format/edit.js";
+import { chordAt, insertRepeat, insertSection, lineStartAt, repeatChoices, setChordAt, setLineStart, setSyllables, splitOf, type ChordTarget, type EditResult, type Place } from "../../src/text-format/edit.js";
+import { SECTION_TYPES } from "../../src/text-format/parse.js";
+import type { SectionType } from "../../src/model/chart.js";
 import { relink } from "../../src/text-format/link.js";
 import { syllableAt, type SyllableSpan } from "../../src/text/syllables.js";
 import demo from "../../test/fixtures/charts/demo.json" with { type: "json" };
@@ -335,21 +337,140 @@ pagesEl.addEventListener("mousemove", (e) => {
     hoverRect = markSyllable(h, "syl-hover");
   });
 });
-pagesEl.addEventListener("mouseleave", () => { cancelAnimationFrame(hoverFrame); clearHover(); });
+pagesEl.addEventListener("mouseleave", () => { cancelAnimationFrame(hoverFrame); clearHover(); showPlus(undefined); });
 
-/** Shows the menu just below the click, inside the preview. */
+// ---- Click a divider: insert a section or a Repeat line there (owner, 2026-11-14) ------
+
+const plus = $("insert-plus");
+const insertMenu = $("insert-menu");
+const sectionLabel = $<HTMLInputElement>("section-label");
+const sectionType = $<HTMLSelectElement>("section-type");
+const repeatList = $("repeat-list");
+const repeatExtra = $<HTMLInputElement>("repeat-extra");
+const insertError = $("insert-error");
+/** Set while the Insert menu is open: the index the new section gets, and the band clicked. */
+let inserting: { at: number; band: Element; kind: "section" | "repeat" } | undefined;
+
+sectionType.innerHTML = `<option value="">Automatic (from the label)</option>` +
+  SECTION_TYPES.map((t) => `<option value="${t}">${t}</option>`).join("");
+
+/** The "+" at the left end of the divider under the pointer (none: hide it). */
+function showPlus(band: Element | undefined): void {
+  if (!band) { if (!inserting) plus.hidden = true; return; }
+  const preview = $("preview");
+  const box = preview.getBoundingClientRect(), r = band.getBoundingClientRect();
+  plus.hidden = false;
+  plus.style.left = `${r.left - box.left + preview.scrollLeft + 2}px`;
+  plus.style.top = `${r.top + r.height / 2 - box.top + preview.scrollTop}px`;
+}
+pagesEl.addEventListener("mousemove", (e) => {
+  if (!inserting) showPlus((e.target as Element).closest?.("rect[data-insert]") ?? undefined);
+});
+
+function setInsertKind(kind: "section" | "repeat"): void {
+  if (!inserting) return;
+  inserting.kind = kind;
+  for (const b of Array.from(insertMenu.querySelectorAll<HTMLButtonElement>("[data-insert-kind]"))) b.setAttribute("aria-pressed", String(b.dataset.insertKind === kind));
+  $("insert-section-part").hidden = kind !== "section";
+  $("insert-repeat-part").hidden = kind !== "repeat";
+  insertError.textContent = "";
+  (kind === "section" ? sectionLabel : repeatList.querySelector("input") ?? repeatExtra).focus();
+}
+
+/** The sections ticked in the Repeat list, in chart order. */
+const repeatTargets = () =>
+  Array.from(repeatList.querySelectorAll<HTMLInputElement>("input:checked")).map((c) => Number(c.value)).sort((a, b) => a - b);
+
+function updateRepeatPreview(): void {
+  const names = repeatTargets().map((i) => shown?.sections[i]?.label ?? "");
+  const list = names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  const extra = repeatExtra.value.trim();
+  $("repeat-preview").textContent = names.length ? `Repeat ${list}${extra ? ` ${extra}` : ""}` : "";
+}
+
+const escHtml = (t: string) => t.replace(/[&<>"]/g, (ch) => `&#${ch.charCodeAt(0)};`);
+
+function openInsert(e: MouseEvent, band: Element): void {
+  const at = Number(band.getAttribute("data-insert"));
+  inserting = { at, band, kind: "section" };
+  band.classList.add("insert-hl");
+  showPlus(band);
+  const prev = shown?.sections[at - 1], next = shown?.sections[at];
+  const name = (s: typeof prev) => (s ? s.label || "Repeat" : "");
+  $("insert-where").textContent = prev && next ? `between ${name(prev)} and ${name(next)}` : prev ? `after ${name(prev)}` : next ? `before ${name(next)}` : "";
+  sectionLabel.value = "";
+  sectionType.value = "";
+  repeatExtra.value = "";
+  const choices = repeatChoices(text.value, at);
+  repeatList.innerHTML = choices.length
+    ? choices.map((c) => `<label><input type="checkbox" value="${c.index}"> ${escHtml(c.label)}</label>`).join("")
+    : `<span>No labeled section above this line yet.</span>`;
+  insertMenu.querySelector<HTMLButtonElement>('[data-insert-kind="repeat"]')!.disabled = !choices.length;
+  updateRepeatPreview();
+  placeMenu(insertMenu, e);
+  setInsertKind("section");
+}
+
+function closeInsert(): void {
+  insertMenu.hidden = true;
+  inserting?.band.classList.remove("insert-hl");
+  inserting = undefined;
+  plus.hidden = true;
+}
+
+function applyInsert(): void {
+  if (!inserting) return;
+  const { at, kind } = inserting;
+  let r: EditResult;
+  if (kind === "section") {
+    const type = sectionType.value as SectionType | "";
+    r = insertSection(text.value, at, type ? { label: sectionLabel.value, type } : { label: sectionLabel.value });
+  } else {
+    r = insertRepeat(text.value, at, { targets: repeatTargets(), extra: repeatExtra.value });
+  }
+  if ("error" in r) { insertError.textContent = r.error; return; }
+  closeInsert();
+  const lines = r.text.split("\n");
+  const offset = (line: number) => lines.slice(0, line - 1).reduce((n, l) => n + l.length + 1, 0);
+  // A new section: the caret goes on the empty line under its heading, ready for its first line.
+  // A Repeat line: it is selected.
+  if (kind === "section") replaceText(r.text, offset(r.from + 1));
+  else replaceText(r.text, offset(r.from), offset(r.to + 1) - 1);
+  baseline = r.text;
+  render();
+}
+
+insertMenu.addEventListener("click", (e) => {
+  const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button");
+  if (!b) return;
+  if (b.dataset.insertKind) setInsertKind(b.dataset.insertKind as "section" | "repeat");
+  else if (b.id === "insert-apply") applyInsert();
+  else if (b.id === "insert-cancel") closeInsert();
+});
+insertMenu.addEventListener("change", updateRepeatPreview);
+repeatExtra.addEventListener("input", updateRepeatPreview);
+insertMenu.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { e.preventDefault(); closeInsert(); }
+  else if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT" && (e.target as HTMLInputElement).type !== "checkbox") { e.preventDefault(); applyInsert(); }
+});
+
+/** Shows a menu just below the click, inside the preview. */
+function placeMenu(el: HTMLElement, e: MouseEvent): void {
+  const preview = $("preview");
+  const box = preview.getBoundingClientRect();
+  el.hidden = false;
+  const left = Math.min(e.clientX - box.left + preview.scrollLeft - 20, preview.scrollLeft + preview.clientWidth - el.offsetWidth - 8);
+  el.style.left = `${Math.max(8, left)}px`;
+  el.style.top = `${e.clientY - box.top + preview.scrollTop + 16}px`;
+}
+
 function openMenuAt(e: MouseEvent, mode: "syllable" | "line"): void {
   $("syl-part").hidden = mode !== "syllable";
   $("entry-part").hidden = mode !== "line";
   $("chord-label").textContent = mode === "line" ? "Chord on beat 1" : "Chord";
   menu.setAttribute("aria-label", mode === "line" ? "Start of this line" : "Chord on this syllable");
   menuError.textContent = "";
-  const preview = $("preview");
-  const box = preview.getBoundingClientRect();
-  menu.hidden = false;
-  const left = Math.min(e.clientX - box.left + preview.scrollLeft - 20, preview.scrollLeft + preview.clientWidth - menu.offsetWidth - 8);
-  menu.style.left = `${Math.max(8, left)}px`;
-  menu.style.top = `${e.clientY - box.top + preview.scrollTop + 16}px`;
+  placeMenu(menu, e);
   menuInput.focus();
   menuInput.select();
 }
@@ -389,10 +510,14 @@ pagesEl.addEventListener("click", (e) => {
   const h = syllableUnder(e);
   if (!h) {
     const rect = (e.target as Element).closest?.("rect[data-line-start]");
+    const band = (e.target as Element).closest?.("rect[data-insert]");
     closeMenu();
+    closeInsert();
     if (rect) { clearHover(); openLineStart(e, rect); }
+    else if (band) { clearHover(); openInsert(e, band); }
     return;
   }
+  closeInsert();
   const { si, bi, lyric, syl } = h;
   closeMenu();
   clearHover();

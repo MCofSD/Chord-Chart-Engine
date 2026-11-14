@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { fitLine } from "../src/chart/line.js";
 import { renderChart } from "../src/chart/render.js";
-import type { LineBlock } from "../src/model/chart.js";
+import { resolveRepeats, type LineBlock } from "../src/model/chart.js";
 import { lyricText } from "../src/text-format/canonical.js";
-import { chordAt, lineStartAt, setChordAt, setLineStart, setSyllables, splitOf, type ChordTarget } from "../src/text-format/edit.js";
+import { chordAt, insertRepeat, insertSection, lineStartAt, repeatChoices, setChordAt, setLineStart, setSyllables, splitOf, type ChordTarget } from "../src/text-format/edit.js";
 import { parseChartText, writeChartText } from "../src/text-format/index.js";
 import { relink } from "../src/text-format/link.js";
 import { lineTiming } from "../src/chart/timing.js";
@@ -295,5 +295,76 @@ describe("a chart's own syllable splits (Syllables: header)", () => {
     const reSplit = setSyllables(withChord, "dedicated", "de-di-cat-ed");
     if ("error" in reSplit) throw new Error(reSplit.error);
     expect(x(reSplit.text)).toBeLessThan(x(withChord)); // "de" is narrower than "ded", so its middle is further left
+  });
+});
+
+describe("insertSection / insertRepeat (click a divider on the page)", () => {
+  // Made-up lyrics only.
+  const SRC = "Title: T\nKey: G\n\n# Intro\nG  C\n\n# 1st Ver\nG\nla la la\n\n# Chorus\nC\nna na na\n";
+  const ok = (r: ReturnType<typeof insertSection>) => { if ("error" in r) throw new Error(r.error); return r; };
+  const labels = (src: string) => parseChartText(src).chart.sections.map((s) => `${s.label}:${s.type}`);
+  const lineAt = (text: string, n: number) => text.split("\n")[n - 1];
+
+  it("adds an empty labeled section at the start, middle and end", () => {
+    const a = ok(insertSection(SRC, 0, { label: "Count-in" }));
+    expect(labels(a.text)).toEqual(["Count-in:other", "Intro:intro", "1st Ver:verse", "Chorus:chorus"]);
+    expect(lineAt(a.text, a.from)).toBe("# Count-in");
+    const b = ok(insertSection(SRC, 2, { label: "Pre-Chorus" }));
+    expect(labels(b.text)[2]).toBe("Pre-Chorus:prechorus");
+    expect(lineAt(b.text, b.from + 1)).toBe(""); // room to type the first line
+    const c = ok(insertSection(SRC, 3, { label: "Outro" }));
+    expect(labels(c.text).at(-1)).toBe("Outro:outro");
+    expect(c.text.endsWith("# Outro\n")).toBe(true);
+  });
+
+  it("writes the type only when the label doesn't give it", () => {
+    const r = ok(insertSection(SRC, 3, { label: "Tag", type: "outro" }));
+    expect(lineAt(r.text, r.from)).toBe("# Tag =outro");
+    expect(lineAt(ok(insertSection(SRC, 3, { label: "Bridge", type: "bridge" })).text, r.from)).toBe("# Bridge");
+    expect(insertSection(SRC, 1, { label: "  " })).toHaveProperty("error");
+  });
+
+  it("adds Repeat lines that point back to the chosen sections", () => {
+    const one = ok(insertRepeat(SRC, 3, { targets: [2] }));
+    expect(lineAt(one.text, one.from)).toBe("Repeat {Chorus}");
+    const two = ok(insertRepeat(SRC, 3, { targets: [1, 2], extra: "(2x)" }));
+    expect(lineAt(two.text, two.from)).toBe("Repeat {1st Ver} and {Chorus} (2x)");
+    const three = ok(insertRepeat(SRC, 3, { targets: [0, 1, 2] }));
+    expect(lineAt(three.text, three.from)).toBe("Repeat {Intro}, {1st Ver} and {Chorus}");
+    expect(resolveRepeats(parseChartText(three.text).chart).targets).toEqual(new Set([0, 1, 2]));
+  });
+
+  it("names the exact section when a later one has the same type", () => {
+    const src = SRC + "\n# 2nd Ver\nG\nla la\n";
+    const r = ok(insertRepeat(src, 4, { targets: [1] }));
+    expect(lineAt(r.text, r.from)).toBe("Repeat {1st Ver|1st Ver}");
+    expect([...resolveRepeats(parseChartText(r.text).chart).targets]).toEqual([1]);
+  });
+
+  it("only points back to earlier sections", () => {
+    expect(insertRepeat(SRC, 1, { targets: [2] })).toHaveProperty("error");
+    expect(insertRepeat(SRC, 1, { targets: [] })).toHaveProperty("error");
+    expect(repeatChoices(SRC, 2).map((c) => c.label)).toEqual(["Intro", "1st Ver"]);
+  });
+
+  it("keeps a heading-less Repeat section and a just-added empty section apart", () => {
+    const withRepeat = ok(insertRepeat(SRC, 3, { targets: [2] })).text;
+    const s = ok(insertSection(withRepeat, 3, { label: "Bridge" }));
+    expect(labels(s.text)).toEqual(["Intro:intro", "1st Ver:verse", "Chorus:chorus", "Bridge:bridge", ":other"]);
+    const empty = ok(insertSection(SRC, 3, { label: "Solo" })).text;
+    const r = ok(insertRepeat(empty, 4, { targets: [2] }));
+    const back = parseChartText(r.text).chart.sections;
+    expect(back.length).toBe(5);
+    expect(back[3]!.blocks.length).toBe(0);
+  });
+
+  it("shows an empty section's label and marks every divider in the editor render", () => {
+    const text = ok(insertSection(SRC, 3, { label: "Outro" })).text;
+    const chart = parseChartText(text).chart;
+    const plain = renderChart(chart).pages.join("");
+    expect(plain).toContain(">Outro<");
+    expect(plain).not.toContain("data-insert");
+    const ann = renderChart(chart, { annotate: true }).pages.join("");
+    expect([...ann.matchAll(/data-insert="(\d+)"/g)].map((m) => Number(m[1])).sort((x, y) => x - y)).toEqual([0, 1, 2, 3, 4]);
   });
 });

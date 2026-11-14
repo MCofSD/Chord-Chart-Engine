@@ -101,6 +101,22 @@ details td{padding:2px 10px 2px 0;vertical-align:top}
 #pages rect[data-line-start]{cursor:pointer}
 #pages rect[data-line-start]:hover{fill:#d6e6f8}
 #pages rect[data-line-start].line-hl{fill:#ffe48a}
+#pages rect:not([data-insert]):not([data-line-start]){pointer-events:none}
+#pages rect[data-insert]{cursor:pointer}
+#pages rect[data-insert]:hover,#pages rect[data-insert].insert-hl{fill:#d6e6f8}
+#insert-plus{position:absolute;z-index:4;width:18px;height:18px;margin:-9px 0 0;border-radius:50%;background:var(--navy);color:#fff;font:bold 15px/18px Arimo,Arial,sans-serif;text-align:center;pointer-events:none}
+#insert-menu{position:absolute;z-index:5;width:270px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.25);padding:10px 12px}
+#insert-menu .menu-head{margin:0 0 8px;font-size:14px}
+#insert-menu label{display:block;font-size:12px;color:var(--mut);margin-top:8px}
+#insert-menu input[type=text],#insert-menu select{width:100%;font:14px Arimo,Arial,sans-serif;padding:4px 8px;margin:2px 0 0;border:1px solid var(--line);border-radius:4px;background:var(--card);color:var(--fg)}
+#insert-menu .tabs{display:flex;gap:4px}
+#insert-menu .tabs button{flex:1;padding:4px 6px}
+#insert-menu .tabs button[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);color:#fff}
+#repeat-list{max-height:160px;overflow:auto;margin:2px 0 0;padding:4px 6px;border:1px solid var(--line);border-radius:4px}
+#insert-menu #repeat-list label{display:flex;align-items:center;gap:6px;margin:2px 0;font-size:14px;color:var(--fg)}
+#repeat-preview{font-size:13px;margin:8px 0 0;font-weight:bold}
+#insert-error{color:var(--bad);font-size:12px;margin:6px 0 0}
+#insert-error:empty{display:none}
 #chord-menu{position:absolute;z-index:5;width:250px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.25);padding:10px 12px}
 #chord-menu .menu-head{margin:0 0 8px;font-size:14px}
 #chord-where{color:var(--mut);font-size:12px}
@@ -121,7 +137,7 @@ details td{padding:2px 10px 2px 0;vertical-align:top}
 @media (max-width:900px){main{grid-template-columns:1fr;grid-template-rows:auto auto}.edit{border-right:0;border-bottom:1px solid var(--line)}textarea{min-height:50vh}.preview{overflow:visible}}
 @page{size:letter;margin:0}
 @media print{
-  header,.edit,#chord-menu,.syl-hl,.syl-hover,#pages rect[data-line-start]{display:none}
+  header,.edit,#chord-menu,#insert-menu,#insert-plus,.syl-hl,.syl-hover,#pages rect[data-line-start],#pages rect[data-insert]{display:none}
   body,html{display:block;height:auto;background:#fff}
   main{display:block}
   .preview{padding:0;overflow:visible}
@@ -176,6 +192,7 @@ details td{padding:2px 10px 2px 0;vertical-align:top}
 <tr><td><code>pre~~tend</code></td><td>~ (or extra spaces between words) makes room for chords; it is not printed.</td></tr>
 <tr><td><code>2  2&amp;  2:3</code></td><td>Optional line under a lyric: beat of the syllable above (bar:beat).</td></tr>
 <tr><td><code>Repeat {Chorus}</code></td><td>Repeat line; the name in { } links to that section (colours it).</td></tr>
+<tr><td>click a divider</td><td>On the page, click a gray line between sections (a + shows) to insert a new section or a Repeat line there.</td></tr>
 <tr><td><code>. A line</code> <code>! (Use chords for Verse)</code></td><td>Force a lyric line / a chord line.</td></tr>
 <tr><td><code>\`\`\`json</code></td><td>Blocks the text can't express yet (notation images) are kept as JSON.</td></tr>
 </table>
@@ -205,6 +222,32 @@ details td{padding:2px 10px 2px 0;vertical-align:top}
 <button type="button" id="chord-apply" class="primary">Apply</button>
 <button type="button" id="chord-remove">Remove</button>
 <button type="button" id="chord-cancel">Cancel</button>
+</div>
+</div>
+<div id="insert-plus" hidden>+</div>
+<div id="insert-menu" role="dialog" aria-label="Insert here" hidden>
+<p class="menu-head"><strong>Insert here</strong> <span id="insert-where"></span></p>
+<div class="tabs" role="group" aria-label="What to insert">
+<button type="button" data-insert-kind="section" aria-pressed="true">New section</button>
+<button type="button" data-insert-kind="repeat" aria-pressed="false">Repeat section</button>
+</div>
+<div id="insert-section-part">
+<label for="section-label">Label</label>
+<input type="text" id="section-label" autocomplete="off" spellcheck="false" placeholder="Chorus, 1st Ver, Bridge…">
+<label for="section-type">Type</label>
+<select id="section-type"></select>
+</div>
+<div id="insert-repeat-part" hidden>
+<label>Repeat which sections</label>
+<div id="repeat-list"></div>
+<label for="repeat-extra">Extra (optional)</label>
+<input type="text" id="repeat-extra" autocomplete="off" spellcheck="false" placeholder="(2x), (⊕last two bars)…">
+<p id="repeat-preview"></p>
+</div>
+<p id="insert-error" role="alert"></p>
+<div class="menu-actions">
+<button type="button" id="insert-apply" class="primary">Insert</button>
+<button type="button" id="insert-cancel">Cancel</button>
 </div>
 </div>
 </section>

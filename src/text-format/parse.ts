@@ -18,6 +18,8 @@ export interface ParseResult {
   problems: Problem[];
   /** Where each chords-and-lyric block came from, for editing the text from the page. */
   sources: LineSource[];
+  /** The text line (1-based) where each section starts: its "#" heading, or the line that opened it. */
+  sectionLines: number[];
 }
 
 /** The text lines (1-based) a line block was read from. */
@@ -232,6 +234,7 @@ function expandTabs(line: string): string {
 export function parseChartText(src: string): ParseResult {
   const problems: Problem[] = [];
   const sources: LineSource[] = [];
+  const sectionLines: number[] = [];
   const problem = (line: number, message: string) => problems.push({ line, message });
   const raw = src.replace(/^﻿/, "").replace(/\r\n?/g, "\n").split("\n");
   const lines = raw.map((l, k) => {
@@ -246,6 +249,7 @@ export function parseChartText(src: string): ParseResult {
       problem(no, "this comes before the first section heading; add one, e.g. # Intro");
       cur = { type: "other", label: "", blocks: [] };
       chart.sections.push(cur);
+      sectionLines.push(no);
     }
     return cur;
   };
@@ -304,6 +308,7 @@ export function parseChartText(src: string): ParseResult {
       }
       cur = { type: type ?? (label ? sectionTypeOf(label) : "other"), label, blocks: [] };
       chart.sections.push(cur);
+      sectionLines.push(no);
       afterBlank = false;
       i++;
       continue;
@@ -314,6 +319,7 @@ export function parseChartText(src: string): ParseResult {
       if (!cur || (afterBlank && cur.blocks.length > 0)) {
         cur = { type: "other", label: "", blocks: [] };
         chart.sections.push(cur);
+        sectionLines.push(no);
       }
       cur.blocks.push(readNote(line, chart.sections.slice(0, -1), (m) => problem(no, m)));
       afterBlank = false;
@@ -342,5 +348,5 @@ export function parseChartText(src: string): ParseResult {
   if (meta.title === undefined) { problem(1, "add a Title: line at the top"); meta.title = ""; }
   if (meta.artist === undefined) meta.artist = "";
   if (meta.key === undefined) { problem(1, "add a Key: line at the top, e.g. Key: G"); meta.key = ""; }
-  return { chart, problems, sources };
+  return { chart, problems, sources, sectionLines };
 }

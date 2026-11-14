@@ -24,6 +24,10 @@
       "_targetPages": "Charts aim to fit this many pages (owner); more prints a warning.",
       "targetPages": 2
     },
+    "editor": {
+      "_insertBand": "Editor only (owner, 2026-11-14): height of the clickable band centered on each divider rule, where a click inserts a section or a Repeat line. Not drawn in print or export.",
+      "insertBand": 8
+    },
     "squish": {
       "_note": "When a chart would run past page.targetPages, vertical spacing is tightened from the max (row.height, section padding) just enough to fit, down to these minimums (owner, 2026-11-09: keep sections whole; squish section height to stay on 2 pages; rows between 17 and 20 pt). Font sizes and notation images never shrink. The minimum row height keeps a chord's superscript clear of the lyric descenders above it at arm's length. (verify)",
       "minRowHeight": 17,

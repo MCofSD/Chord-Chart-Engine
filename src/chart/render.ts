@@ -27,7 +27,9 @@ export interface RenderChartOptions {
    * For the editor: tag each lyric text piece with where it comes from,
    * `<g data-lyric="section:block:from">`, so a click on the page can find the
    * syllable, and mark the blank space left of each line's lyric,
-   * `<rect data-line-start="section:block">`. Off for printing and export.
+   * `<rect data-line-start="section:block">`, and each divider between
+   * sections in `<rect data-insert="N">` (N = index a section inserted there
+   * would get; 0 = the rule under the title). Off for printing and export.
    */
   annotate?: boolean;
 }
@@ -290,7 +292,7 @@ export function renderChart(chart: Chart, options: RenderChartOptions = {}): Ren
   // Owner (2026-11-09): keep each section whole on its page; if the chart would
   // run past the target page count, squish vertical spacing just enough to fit.
   const target = P.page.targetPages;
-  const paginateAt = (s: number) => paginate(chart, laid, colors, vertical(s), bottom);
+  const paginateAt = (s: number) => paginate(chart, laid, colors, vertical(s), bottom, options.annotate === true);
   let pages = paginateAt(0);
   // Squish only when that keeps the chart within the target; a longer chart keeps normal spacing.
   if (pages.length > target && paginateAt(1).length <= target) {
@@ -303,8 +305,11 @@ export function renderChart(chart: Chart, options: RenderChartOptions = {}): Ren
 }
 
 /** Lays sections onto pages. A section moves whole to the next page if it doesn't fit; it splits only if taller than a page. */
-function paginate(chart: Chart, laid: LaidBlock[][], colors: RepeatColors, V: Vertical, bottom: number): string[][] {
-  const pages: string[][] = [[headerSvg(chart), rule(P.rule.firstY)]];
+function paginate(chart: Chart, laid: LaidBlock[][], colors: RepeatColors, V: Vertical, bottom: number, annotate: boolean): string[][] {
+  // Editor: a band along a divider, where a click inserts a section (index n) there.
+  const band = (n: number, y: number) =>
+    annotate ? `<rect data-insert="${n}" x="0" y="${fmt(y - P.editor.insertBand / 2)}" width="${fmt(P.page.width)}" height="${fmt(P.editor.insertBand)}" fill="transparent"/>` : "";
+  const pages: string[][] = [[band(0, P.rule.firstY), headerSvg(chart), rule(P.rule.firstY)]];
   let y = P.rule.firstY;
   const newPage = () => {
     pages.push([rule(P.rule.firstY)]);
@@ -312,10 +317,13 @@ function paginate(chart: Chart, laid: LaidBlock[][], colors: RepeatColors, V: Ve
   };
   for (const [index, section] of chart.sections.entries()) {
     let blocks = laid[index]!;
-    if (y + sectionHeight(blocks, V) > bottom && y > P.rule.firstY) newPage();
+    // A section with no lines yet (just added in the editor) shows its label on one blank row.
+    const empty = blocks.length === 0;
+    const height = empty ? V.padTop + V.rowHeight + V.padBottom : sectionHeight(blocks, V);
+    if (y + height > bottom && y > P.rule.firstY) newPage();
 
     let first = true;
-    while (blocks.length) {
+    while (first || blocks.length) {
       let take = blocks.length;
       while (take > 1 && y + sectionHeight(blocks.slice(0, take), V) > bottom) take--;
       const part = blocks.slice(0, take);
@@ -325,8 +333,8 @@ function paginate(chart: Chart, laid: LaidBlock[][], colors: RepeatColors, V: Ve
       const top = y + V.padTop;
       if (first && section.label) {
         const { fill, bold } = sectionStyle(index, colors);
-        const firstBlock = part[0]!.block;
-        const labelBaseline = firstBlock.kind === "snippet" ? y + P.section.labelBaselineOverSnippet : top + V.baseline;
+        const firstBlock = part[0]?.block;
+        const labelBaseline = firstBlock?.kind === "snippet" ? y + P.section.labelBaselineOverSnippet : top + V.baseline;
         page.push(runsToSvg(labelRuns(section.label, fill, bold), P.section.labelX, labelBaseline).svg);
       }
       let rowTop = top;
@@ -334,8 +342,11 @@ function paginate(chart: Chart, laid: LaidBlock[][], colors: RepeatColors, V: Ve
         page.push(blockSvg(b, rowTop, colors, V));
         rowTop += blockHeight(b, V);
       }
+      if (empty) rowTop += V.rowHeight;
       y = rowTop + V.padBottom;
       page.push(rule(y));
+      // Under everything else, so lyrics and line starts keep their clicks.
+      if (!blocks.length && annotate) page.unshift(band(index + 1, y));
       first = false;
       if (blocks.length) newPage();
     }

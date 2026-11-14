@@ -284,6 +284,15 @@ Started 2026-11-09 (CLAUDE.md §2 item 4). What authors type in the editor; pars
 - Limits: only lyric syllables are clickable (chord-only lines and notation are typed); applying from the menu re-spaces that line in the standard way, so hand padding on it may change.
 - Checked in headless Chrome: click opens the menu on the right syllable with its chord, Apply rewrites one line, Ctrl+Z restores, typing a word before chorded syllables and lengthening a chord name keep every chord on its syllable.
 
+## Insert a section or a Repeat line at a divider (owner, 2026-11-14)
+
+- With `annotate: true`, the renderer puts a transparent `<rect data-insert="N">` along each divider rule (height `render.editor.insertBand` in the rules), drawn under everything else on the page so lyrics and line starts keep their clicks. `N` is the index the inserted section gets: 0 for the rule under the title, `i + 1` for the rule after section `i` (only after its last part when it splits across pages). Hidden in print.
+- **New section** asks for the label only, plus an optional type (owner choice). `insertSection` (`src/text-format/edit.ts`) writes `# Label` (`=type` only when the label doesn't give it). If the next section is a heading-less Repeat section, it would join the new empty section, so that section gets a `#` heading of its own.
+- **Repeat section**: `insertRepeat` writes `Repeat {A}`, `Repeat {A} and {B}`, or `Repeat {A}, {B} and {C}` plus optional text, as a section of its own. When the type alone would point to a later section of the same type, it writes `{1st Ver|1st Ver}` to name the exact one. The list (`repeatChoices`) shows earlier labeled sections, the latest of each label.
+- Both read the result back and check that every other section is unchanged and that the Repeat points where it was asked to; otherwise they refuse with an error. The parser now reports `sectionLines` (where each section starts) for this.
+- A section with no lines yet is drawn as one blank row with its label. Before this change it drew nothing; imported and demo charts never have empty sections, so their output is unchanged.
+- Checked in headless Chrome: hover shows the +, the band is under the pointer, New section and Repeat both edit the text and redraw (the repeated label turns green), Ctrl+Z undoes each, lyric clicks still open the chord menu, print hides the bands.
+
 ## Open questions (editor)
 
 - Watermark for PDF export (text, placement, who sees which version): not specified, so not added.
