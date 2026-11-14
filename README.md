@@ -28,7 +28,7 @@ These steps take you from a new computer to the chart editor running. Commands a
 
 ### 1. Install the tools
 
-- **Node.js 22 or newer.** Download the **LTS** installer from [nodejs.org](https://nodejs.org) and run it with the default options. It includes npm, the tool that installs the project's packages.
+- **Node.js 22 or newer.** Download the **LTS** installer from [nodejs.org](gtps://nodejs.org) and run it with the default options. It includes npm, the tool that installs the project's packages.
 - **Git.** Download it from [git-scm.com](https://git-scm.com) and install it with the default options. (On macOS, running `git --version` offers to install it.)
 
 Close and reopen the terminal, then check that both are found:
@@ -120,9 +120,10 @@ npm run editor
 
 After [setting up](#getting-started), run `npm run editor`, then open `chart-editor.html` in Chrome or Edge. It is self-contained (about 7 MB with the fonts) and works offline. It is not committed, so rebuild it after pulling changes. Type the chart on the left; the cover and chart pages update on the right as they will print.
 
-- **Open…** reads a chart text file, or a chart JSON (for example one made by the PDF importer), which is turned into text.
+- **Open…** reads a chart text file, or a chart JSON (for example one made by the PDF importer), which is turned into text. For imported charts, see [Fix it in the chart editor](#4-fix-it-in-the-chart-editor-optional).
 - **Add files…** adds the notation images and MusicXML files a chart refers to.
-- **Save** writes the chart text (Ctrl+S). The draft is also kept in the browser between visits.
+- **Save as JSON** writes the chart as JSON, the file the importer and renderer use and the one to keep. It won't save while the Problems list shows lines the editor can't read, since those lines would be left out.
+- **Save** writes the chart text (Ctrl+S), a working copy. The draft is also kept in the browser between visits.
 - **Print / Save as PDF** prints the cover and chart pages on US Letter; choose "Save as PDF" in the print dialog, margins "None".
 - The **Problems** list shows lines the editor can't read (click one to jump to the line) and layout warnings.
 - **Click a syllable on the page** to add, change or remove its chord. Hovering shades the syllable a click will pick (one sung syllable, e.g. "cat" in "dedicated"). A small menu opens with the chord already there (if any): type the chord as you would in a chord line (`G`, `|Am7[2&]`), choose **Before**, **On** or **After** the syllable, then **Apply** (or Enter). **Remove** takes the chord off. The edit is made in the text on the left, so Ctrl+Z undoes it.
@@ -186,9 +187,24 @@ The importer never silently guesses. Anything uncertain is kept and listed in `r
 
    This rewrites the PDF, page PNGs, and page SVGs next to the JSON.
 
+   Or make the fixes in the chart editor, as described next.
+
+### 4. Fix it in the chart editor (optional)
+
+The editor is easier than editing the JSON by hand: you click a syllable to move a chord and see the pages update as you type. It opens the JSON and saves it back, so the **JSON stays the final file**. (The editor shows the chart as text while you work; turning JSON into text and back loses nothing, and the chart prints the same.)
+
+1. **Build and open the editor** (once per pull): `npm run editor`, then open `chart-editor.html` in Chrome or Edge.
+2. **Open the imported JSON**: click **Open…** and pick `local/imports/<title>/<title>.json`.
+3. **Add the notation images**: click **Add files…** and pick every `snippet-*.png` in the same folder. Without them the editor shows "images not added yet" where the notation goes.
+4. **Work through `review.txt`** with `compare-p*.png` open, fixing each item in the editor. The **Problems** list must be free of line problems before you can save JSON (layout warnings are fine).
+5. **Click Save as JSON** and save over `<title>.json` in the chart's folder. In Chrome and Edge a save dialog opens; later saves go to the same file without asking. If your browser downloads the file instead, move it from your Downloads folder into the chart's folder, replacing the old JSON.
+6. **Re-render** with `scripts/render-chart.ts` as in step 3 to update the PDF and images.
+
+To continue editing later, open the JSON again. You don't need **Save** (chart text) for imported charts; the editor also keeps your draft in the browser between visits.
+
 ### Running it again
 
-Running the importer again on the same PDF **replaces** that chart's folder contents: the JSON and every image, PDF, and review file. If you have hand-edited an imported chart, copy it out of `local/imports/` first, or give the new import a different folder:
+Running the importer again on the same PDF **replaces** that chart's folder contents: the JSON and every image, PDF, and review file. If you have edited an imported chart, by hand or in the editor, copy its JSON out of `local/imports/` first, or give the new import a different folder:
 
 ```sh
 npm run import-chart -- "chart.pdf" local/imports/second-try

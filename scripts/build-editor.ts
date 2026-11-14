@@ -133,6 +133,7 @@ details td{padding:2px 10px 2px 0;vertical-align:top}
 <button type="button" id="open">Open…</button>
 <button type="button" id="add">Add files…</button>
 <button type="button" id="save">Save</button>
+<button type="button" id="save-json" title="Save the chart as JSON, the file the importer and renderer use">Save as JSON</button>
 <label class="follow"><input type="checkbox" id="follow" checked> Chords follow their syllables</label>
 <button type="button" id="print" class="primary">Print / Save as PDF</button>
 <input type="file" id="open-input" accept=".txt,.json" hidden>

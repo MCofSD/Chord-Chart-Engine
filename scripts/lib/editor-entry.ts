@@ -32,6 +32,8 @@ let shown: Chart | undefined;
 let baseline = "";
 const FOLLOW_KEY = "chart-editor:follow";
 let saveHandle: FileSystemFileHandle | undefined;
+/** Where "Save as JSON" last wrote, so the next save goes to the same file. */
+let jsonHandle: FileSystemFileHandle | undefined;
 
 /** The starting chart: the made-up demo, without its intro (a notation image the page doesn't have). */
 function starter(): string {
@@ -122,6 +124,7 @@ function setText(value: string, name: string): void {
 async function openFile(file: File): Promise<void> {
   const src = await file.text();
   saveHandle = undefined;
+  jsonHandle = undefined;
   if (/\.json$/i.test(file.name)) {
     try {
       setText(writeChartText(JSON.parse(src) as Chart), file.name.replace(/\.json$/i, ".chart.txt"));
@@ -131,28 +134,63 @@ async function openFile(file: File): Promise<void> {
   } else setText(src, file.name);
 }
 
-async function save(): Promise<void> {
-  const blob = new Blob([text.value], { type: "text/plain;charset=utf-8" });
+type SaveType = { description: string; accept: Record<string, string[]> };
+
+/**
+ * Writes a file: through the browser's save dialog where there is one (Chrome, Edge),
+ * reusing `handle` so later saves go to the same file; otherwise as a download.
+ * Returns the handle written to, or undefined (download, or the dialog was cancelled).
+ */
+async function writeFile(blob: Blob, name: string, type: SaveType, handle?: FileSystemFileHandle): Promise<FileSystemFileHandle | undefined> {
   const picker = (window as unknown as { showSaveFilePicker?: (o: object) => Promise<FileSystemFileHandle> }).showSaveFilePicker;
   if (picker) {
     try {
-      saveHandle ??= await picker({ suggestedName: fileName, types: [{ description: "Chart text", accept: { "text/plain": [".txt"] } }] });
-      const w = await saveHandle.createWritable();
+      handle ??= await picker({ suggestedName: name, types: [type] });
+      const w = await handle.createWritable();
       await w.write(blob);
       await w.close();
-      fileName = saveHandle.name;
-      $("file-name").textContent = fileName;
-      statusEl.textContent = `Saved ${fileName}.`;
-      return;
+      statusEl.textContent = `Saved ${handle.name}.`;
+      return handle;
     } catch (e) {
-      if (e instanceof DOMException && e.name === "AbortError") return;
+      if (e instanceof DOMException && e.name === "AbortError") return undefined;
     }
   }
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = fileName;
+  a.download = name;
   a.click();
   URL.revokeObjectURL(a.href);
+  statusEl.textContent = `Downloaded ${name}.`;
+  return undefined;
+}
+
+async function save(): Promise<void> {
+  const blob = new Blob([text.value], { type: "text/plain;charset=utf-8" });
+  const h = await writeFile(blob, fileName, { description: "Chart text", accept: { "text/plain": [".txt"] } }, saveHandle);
+  if (!h) return;
+  saveHandle = h;
+  fileName = h.name;
+  $("file-name").textContent = fileName;
+}
+
+/** The JSON file name for the current chart: `x.chart.txt` → `x.json`. */
+const jsonName = () => fileName.replace(/(\.chart)?\.txt$/i, "") + ".json";
+
+/**
+ * Saves the chart as JSON, the file the importer and renderer use, in the same form as
+ * `npm run chart-to-text`. Refuses while any line can't be read, since those lines
+ * would be left out of the JSON.
+ */
+async function saveJson(): Promise<void> {
+  const { chart, problems } = parseChartText(text.value);
+  if (problems.length) {
+    alert(`Fix the ${problems.length} problem(s) in the Problems list first: lines the editor can't read would be left out of the JSON.`);
+    goToLine(problems[0]!.line);
+    return;
+  }
+  const blob = new Blob([JSON.stringify(chart, null, 2) + "\n"], { type: "application/json" });
+  const h = await writeFile(blob, jsonName(), { description: "Chart JSON", accept: { "application/json": [".json"] } }, jsonHandle);
+  if (h) jsonHandle = h;
 }
 
 async function addFiles(list: FileList): Promise<void> {
@@ -402,9 +440,10 @@ $("files-input").addEventListener("change", (e) => {
 $("open").addEventListener("click", () => $("open-input").click());
 $("add").addEventListener("click", () => $("files-input").click());
 $("save").addEventListener("click", () => void save());
+$("save-json").addEventListener("click", () => void saveJson());
 $("print").addEventListener("click", () => window.print());
 $("new").addEventListener("click", () => {
-  if (confirm("Start over from the example chart? Unsaved changes are lost.")) { saveHandle = undefined; setText(starter(), "chart.chart.txt"); }
+  if (confirm("Start over from the example chart? Unsaved changes are lost.")) { saveHandle = undefined; jsonHandle = undefined; setText(starter(), "chart.chart.txt"); }
 });
 
 let draft: { name: string; text: string } | undefined;
