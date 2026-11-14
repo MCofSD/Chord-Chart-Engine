@@ -104,17 +104,17 @@ npm run editor
 
 ### Commands
 
-| Command | What it does |
-|---|---|
-| `npm run preview` | Builds `preview/index.html`: the sample diagrams at cover scales (100%, 65%, 60%) next to the Corel originals, plus a demo chart. Open the file in a browser. |
-| `npm run editor` | Builds `chart-editor.html`, the chart text editor with live preview (see [Chart editor](#chart-editor)). |
-| `npm run chart-to-text -- <chart.json>` | Writes a chart JSON (e.g. from the PDF importer) as chart text for the editor; given a `.txt`, does the reverse. |
-| `npm run diagram-generator` | Rebuilds `diagram-generator.html` from the current renderer. Run it after changing anything in `src/diagram/`. |
-| `npm test` | Runs all tests: importer golden files, renderer unit tests, and pixel comparisons against the originals. |
-| `npm run typecheck` | Type-checks the code without building. |
-| `npx tsx scripts/render-chart.ts <chart.json> [outDir] [--no-cover]` | Renders a chart file to a printable PDF (cover pages first), one PNG per page, and one SVG per page (default output: `preview/charts/`). |
-| `npx tsx scripts/import-samples.ts` | Converts the Corel sample SVGs to voicing JSON and prints it. Add `--write` to update the test fixtures. |
-| `npm run import-chart -- "<chart.pdf>" [outDir]` | Converts a legacy chart PDF to chart JSON, plus a PDF, page PNGs, and comparison PNGs of the result. See [Importing a chart PDF](#importing-a-chart-pdf). |
+| # | Command | What it does |
+|---|---|---|
+| 1 | `npm run preview` | Builds `preview/index.html`: the sample diagrams at cover scales (100%, 65%, 60%) next to the Corel originals, plus a demo chart. Open the file in a browser. |
+| 2 | `npm run editor` | Builds `chart-editor.html`, the chart text editor with live preview (see [Chart editor](#chart-editor)). |
+| 3 | `npm run chart-to-text -- <chart.json>` | Writes a chart JSON (e.g. from the PDF importer) as chart text for the editor; given a `.txt`, does the reverse. |
+| 4 | `npm run diagram-generator` | Rebuilds `diagram-generator.html` from the current renderer. Run it after changing anything in `src/diagram/`. |
+| 5 | `npm test` | Runs all tests: importer golden files, renderer unit tests, and pixel comparisons against the originals. |
+| 6 | `npm run typecheck` | Type-checks the code without building. |
+| 7 | `npx tsx scripts/render-chart.ts <chart.json> [outDir] [--no-cover]` | Renders a chart file to a printable PDF (cover pages first), one PNG per page, and one SVG per page (default output: `preview/charts/`). |
+| 8 | `npx tsx scripts/import-samples.ts` | Converts the Corel sample SVGs to voicing JSON and prints it. Add `--write` to update the test fixtures. |
+| 9 | `npm run import-chart -- "<chart.pdf>" [outDir]` | Converts a legacy chart PDF to chart JSON, plus a PDF, page PNGs, and comparison PNGs of the result. See [Importing a chart PDF](#importing-a-chart-pdf). |
 
 ## Chart editor
 
