@@ -1,0 +1,2 @@
+# Unix line endings everywhere, whatever the local core.autocrlf setting.
+* text=auto eol=lf
