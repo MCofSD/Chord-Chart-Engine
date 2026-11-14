@@ -6,15 +6,15 @@ Musicians' Club publishes about 400 "gig-ready" chord charts as PDFs. Today each
 
 ## Status
 
-| Part | State |
-|---|---|
-| Chord diagram generator (importer, data model, renderer) | Done |
-| Chart renderer (chords over lyrics, bars, beat tags, notation snippets) | Renders chart data to SVG pages, with rhythm spacing and 2-page fitting |
-| Native notation (MusicXML in, tab/standard out; MIDI and picture input) | Drawing done; MIDI and picture input next |
-| Cover pages (layout solver, 4 to 8 columns, 1 or 2 pages; Legend; voicing library) | Working; starter voicing library awaiting review ([details](#cover-pages)) |
-| Text editor with live preview, PDF export | Phase 1 working: chart text format, local editor page, Print to PDF ([how to use it](#chart-editor)). Watermark not specified yet |
-| Importer for existing charts and covers | Chart PDFs: working, with a review step ([how to use it](#importing-a-chart-pdf)). Covers: not started |
-| Library, search, contributor review workflow | Not started |
+| # | Capability | State |
+|---|---|---|
+| 1 | Chord diagram generator (importer, data model, renderer) | Done |
+| 2 | Chart renderer (chords over lyrics, bars, beat tags, notation snippets) | Renders chart data to SVG pages, with rhythm spacing and 2-page fitting |
+| 3 | Native notation (MusicXML in, tab/standard out; MIDI and picture input) | Drawing done; MIDI and picture input next |
+| 4 | Cover pages (layout solver, 4 to 8 columns, 1 or 2 pages; Legend; voicing library) | Working; starter voicing library awaiting review ([details](#cover-pages)) |
+| 5 | Text editor with live preview, PDF export | Phase 1 working: chart text format, local editor page, Print to PDF ([how to use it](#chart-editor)). Watermark not specified yet |
+| 6 | Importer for existing charts and covers | Chart PDFs: working, with a review step ([how to use it](#importing-a-chart-pdf)). Covers: not started |
+| 7 | Library, search, contributor review workflow | Not started |
 
 Measurements, decisions, and known differences from the originals are recorded in [NOTES.md](NOTES.md). Everything still waiting on an answer, a file, or a check is in [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md). The full project brief is [CLAUDE.md](CLAUDE.md).
 
