@@ -104,6 +104,13 @@ details td{padding:2px 10px 2px 0;vertical-align:top}
 #pages rect:not([data-insert]):not([data-line-start]){pointer-events:none}
 #pages rect[data-insert]{cursor:pointer}
 #pages rect[data-insert]:hover,#pages rect[data-insert].insert-hl{fill:#d6e6f8}
+#pages g[data-section] text,#pages g[data-note] text{pointer-events:auto;cursor:pointer}
+#pages g[data-section]:hover text,#pages g[data-note]:hover text,#pages g.insert-hl text{text-decoration:underline}
+#insert-edit{display:flex;gap:6px;margin-top:10px}
+#insert-menu #insert-edit[hidden],#insert-menu #insert-tabs[hidden]{display:none}
+#insert-edit button{padding:4px 8px}
+#section-delete{margin-left:auto}
+#note-text-only{font-size:12px;color:var(--mut);margin:8px 0 0}
 #insert-plus{position:absolute;z-index:4;width:18px;height:18px;margin:-9px 0 0;border-radius:50%;background:var(--navy);color:#fff;font:bold 15px/18px Arimo,Arial,sans-serif;text-align:center;pointer-events:none}
 #insert-menu{position:absolute;z-index:5;width:270px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.25);padding:10px 12px}
 #insert-menu .menu-head{margin:0 0 8px;font-size:14px}
@@ -193,6 +200,7 @@ details td{padding:2px 10px 2px 0;vertical-align:top}
 <tr><td><code>2  2&amp;  2:3</code></td><td>Optional line under a lyric: beat of the syllable above (bar:beat).</td></tr>
 <tr><td><code>Repeat {Chorus}</code></td><td>Repeat line; the name in { } links to that section (colours it).</td></tr>
 <tr><td>click a divider</td><td>On the page, click a gray line between sections (a + shows) to insert a new section or a Repeat line there.</td></tr>
+<tr><td>click a label or Repeat line</td><td>On the page, click a section label to rename it, change its type, move or delete it (with all its lines); click a Repeat line to change what it repeats, move or delete it.</td></tr>
 <tr><td><code>. A line</code> <code>! (Use chords for Verse)</code></td><td>Force a lyric line / a chord line.</td></tr>
 <tr><td><code>\`\`\`json</code></td><td>Blocks the text can't express yet (notation images) are kept as JSON.</td></tr>
 </table>
@@ -226,8 +234,8 @@ details td{padding:2px 10px 2px 0;vertical-align:top}
 </div>
 <div id="insert-plus" hidden>+</div>
 <div id="insert-menu" role="dialog" aria-label="Insert here" hidden>
-<p class="menu-head"><strong>Insert here</strong> <span id="insert-where"></span></p>
-<div class="tabs" role="group" aria-label="What to insert">
+<p class="menu-head"><strong id="insert-head">Insert here</strong> <span id="insert-where"></span></p>
+<div class="tabs" id="insert-tabs" role="group" aria-label="What to insert">
 <button type="button" data-insert-kind="section" aria-pressed="true">New section</button>
 <button type="button" data-insert-kind="repeat" aria-pressed="false">Repeat section</button>
 </div>
@@ -244,7 +252,13 @@ details td{padding:2px 10px 2px 0;vertical-align:top}
 <input type="text" id="repeat-extra" autocomplete="off" spellcheck="false" placeholder="(2x), (⊕last two bars)…">
 <p id="repeat-preview"></p>
 </div>
+<p id="note-text-only" hidden>This line isn't a plain Repeat line; edit its words in the text. You can still move or delete it here.</p>
 <p id="insert-error" role="alert"></p>
+<div id="insert-edit" hidden>
+<button type="button" id="move-up" title="Move one place up">Move up</button>
+<button type="button" id="move-down" title="Move one place down">Move down</button>
+<button type="button" id="section-delete">Delete</button>
+</div>
 <div class="menu-actions">
 <button type="button" id="insert-apply" class="primary">Insert</button>
 <button type="button" id="insert-cancel">Cancel</button>

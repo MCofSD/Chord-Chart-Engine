@@ -29,7 +29,9 @@ export interface RenderChartOptions {
    * syllable, and mark the blank space left of each line's lyric,
    * `<rect data-line-start="section:block">`, and each divider between
    * sections in `<rect data-insert="N">` (N = index a section inserted there
-   * would get; 0 = the rule under the title). Off for printing and export.
+   * would get; 0 = the rule under the title), each section label in
+   * `<g data-section="N">` and each note line in `<g data-note="section:block">`.
+   * Off for printing and export.
    */
   annotate?: boolean;
 }
@@ -217,7 +219,10 @@ function blockSvg(b: LaidBlock, top: number, colors: RepeatColors, V: Vertical):
     }
     return svg;
   }
-  if (block.kind === "note") return runsToSvg(noteRuns(block, colors), P.section.labelX, top + V.baseline).svg;
+  if (block.kind === "note") {
+    const svg = runsToSvg(noteRuns(block, colors), P.section.labelX, top + V.baseline).svg;
+    return b.source === undefined ? svg : `<g data-note="${b.source}">${svg}</g>`;
+  }
 
   let y = top;
   let out = "";
@@ -284,7 +289,7 @@ export function renderChart(chart: Chart, options: RenderChartOptions = {}): Ren
       ...(chart.meta.language !== undefined ? { language: chart.meta.language } : {}),
       ...(chart.meta.syllables?.length ? { syllables: chart.meta.syllables } : {}),
     });
-    if (options.annotate) blocks.forEach((b, bi) => { if (b.rows) b.source = `${si}:${bi}`; });
+    if (options.annotate) blocks.forEach((b, bi) => { if (b.rows || b.block.kind === "note") b.source = `${si}:${bi}`; });
     for (const b of blocks) for (const r of b.rows ?? []) for (const w of r.warnings) warnings.push(`${section.label || section.type}: ${w}`);
     return blocks;
   });
@@ -331,17 +336,22 @@ function paginate(chart: Chart, laid: LaidBlock[][], colors: RepeatColors, V: Ve
 
       const page = pages[pages.length - 1]!;
       const top = y + V.padTop;
+      let label = "";
       if (first && section.label) {
         const { fill, bold } = sectionStyle(index, colors);
         const firstBlock = part[0]?.block;
         const labelBaseline = firstBlock?.kind === "snippet" ? y + P.section.labelBaselineOverSnippet : top + V.baseline;
-        page.push(runsToSvg(labelRuns(section.label, fill, bold), P.section.labelX, labelBaseline).svg);
+        label = runsToSvg(labelRuns(section.label, fill, bold), P.section.labelX, labelBaseline).svg;
+        if (!annotate) page.push(label);
       }
       let rowTop = top;
       for (const b of part) {
         page.push(blockSvg(b, rowTop, colors, V));
         rowTop += blockHeight(b, V);
       }
+      // Editor: the label goes on top of the line-start band of the section's first line, so a click finds it.
+      if (annotate && label) page.push(`<g data-section="${index}">${label}</g>`);
+      label = "";
       if (empty) rowTop += V.rowHeight;
       y = rowTop + V.padBottom;
       page.push(rule(y));

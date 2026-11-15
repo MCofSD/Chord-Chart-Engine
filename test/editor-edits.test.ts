@@ -3,7 +3,7 @@ import { fitLine } from "../src/chart/line.js";
 import { renderChart } from "../src/chart/render.js";
 import { resolveRepeats, type LineBlock } from "../src/model/chart.js";
 import { lyricText } from "../src/text-format/canonical.js";
-import { chordAt, insertRepeat, insertSection, lineStartAt, repeatChoices, setChordAt, setLineStart, setSyllables, splitOf, type ChordTarget } from "../src/text-format/edit.js";
+import { chordAt, deleteNote, deleteSection, editSection, insertRepeat, insertSection, lineStartAt, moveSection, repeatChoices, repeatInfo, sectionInfo, setRepeat, setChordAt, setLineStart, setSyllables, splitOf, type ChordTarget } from "../src/text-format/edit.js";
 import { parseChartText, writeChartText } from "../src/text-format/index.js";
 import { relink } from "../src/text-format/link.js";
 import { lineTiming } from "../src/chart/timing.js";
@@ -382,5 +382,76 @@ describe("New: an empty header to fill in", () => {
     const r = insertSection(BLANK.replace("Title: ", "Title: T").replace("Key: ", "Key: G"), 0, { label: "Intro" });
     if ("error" in r) throw new Error(r.error);
     expect(parseChartText(r.text).chart.sections.map((s) => s.label)).toEqual(["Intro"]);
+  });
+});
+
+describe("edit, move and delete sections and Repeat lines (click a label or a Repeat line)", () => {
+  // Made-up lyrics only.
+  const SRC = "Title: T\nKey: G\n\n# Intro\nG  C\n\n# 1st Ver\nG\nla la la\n\n# Chorus\nC\nna na na\n\nRepeat {Chorus}\n\n# Outro\nG\nmm mm\n> (fade out)\n";
+  const ok = (r: ReturnType<typeof editSection>) => { if ("error" in r) throw new Error(r.error); return r; };
+  const labels = (src: string) => parseChartText(src).chart.sections.map((s) => s.label || "·");
+  const lineAt = (text: string, n: number) => text.split("\n")[n - 1];
+
+  it("renames a section, and the Repeat names that point to it follow", () => {
+    expect(sectionInfo(SRC, 2)).toMatchObject({ label: "Chorus", type: "chorus", repeatedBy: 1 });
+    const r = ok(editSection(SRC, 2, { label: "Refrain" }));
+    expect(lineAt(r.text, r.from)).toBe("# Refrain");
+    expect(r.text).toContain("\nRepeat {Refrain}\n");
+    expect([...resolveRepeats(parseChartText(r.text).chart).targets]).toEqual([2]);
+    const t = ok(editSection(SRC, 4, { label: "Tag", type: "outro" }));
+    expect(lineAt(t.text, t.from)).toBe("# Tag =outro");
+  });
+
+  it("deletes a section with all its lines", () => {
+    expect(labels(ok(deleteSection(SRC, 1)).text)).toEqual(["Intro", "Chorus", "·", "Outro"]);
+    expect(labels(ok(deleteSection(SRC, 0)).text)).toEqual(["1st Ver", "Chorus", "·", "Outro"]);
+    const last = ok(deleteSection(SRC, 4)).text;
+    expect(labels(last)).toEqual(["Intro", "1st Ver", "Chorus", "·"]);
+    expect(last).not.toContain("mm mm");
+  });
+
+  it("moves a section up and down", () => {
+    expect(labels(ok(moveSection(SRC, 1, -1)).text)).toEqual(["1st Ver", "Intro", "Chorus", "·", "Outro"]);
+    expect(labels(ok(moveSection(SRC, 3, 1)).text)).toEqual(["Intro", "1st Ver", "Chorus", "Outro", "·"]);
+    expect(moveSection(SRC, 0, -1)).toHaveProperty("error");
+    expect(moveSection(SRC, 4, 1)).toHaveProperty("error");
+  });
+
+  it("keeps a heading-less Repeat section apart from an empty section it moves under", () => {
+    const withEmpty = ok(insertSection(SRC, 3, { label: "Solo" })).text; // Intro, 1st Ver, Chorus, Solo (empty), Repeat, Outro
+    const r = ok(moveSection(withEmpty, 4, -1)); // Repeat above Solo: fine as it is
+    expect(labels(r.text)).toEqual(["Intro", "1st Ver", "Chorus", "·", "Solo", "Outro"]);
+    const back = ok(moveSection(r.text, 3, 1)); // and back under the empty Solo: needs its own "#"
+    expect(labels(back.text)).toEqual(["Intro", "1st Ver", "Chorus", "Solo", "·", "Outro"]);
+    expect(parseChartText(back.text).chart.sections[3]!.blocks.length).toBe(0);
+  });
+
+  it("reads and edits a Repeat line", () => {
+    expect(repeatInfo(SRC, 3, 0)).toMatchObject({ targets: [2], extra: "", ownSection: true });
+    const r = ok(setRepeat(SRC, 3, 0, { targets: [1, 2], extra: "(2x)" }));
+    expect(lineAt(r.text, r.from)).toBe("Repeat {1st Ver} and {Chorus} (2x)");
+    expect(repeatInfo(r.text, 3, 0)).toMatchObject({ targets: [1, 2], extra: "(2x)" });
+    expect(setRepeat(SRC, 3, 0, { targets: [4] })).toHaveProperty("error");
+  });
+
+  it("gives no targets for a note that isn't a plain Repeat line", () => {
+    expect(repeatInfo(SRC, 4, 1)).toMatchObject({ ownSection: false, text: "(fade out)" });
+    expect(repeatInfo(SRC, 4, 1)!.targets).toBeUndefined();
+  });
+
+  it("deletes a Repeat section, or one note line inside a section", () => {
+    expect(labels(ok(deleteNote(SRC, 3, 0)).text)).toEqual(["Intro", "1st Ver", "Chorus", "Outro"]);
+    const r = ok(deleteNote(SRC, 4, 1));
+    expect(r.text).not.toContain("fade out");
+    expect(parseChartText(r.text).chart.sections[4]!.blocks.length).toBe(1);
+  });
+
+  it("marks labels and notes only in the editor render", () => {
+    const chart = parseChartText(SRC).chart;
+    const ann = renderChart(chart, { annotate: true }).pages.join("");
+    expect([...ann.matchAll(/data-section="(\d+)"/g)].map((m) => m[1])).toEqual(["0", "1", "2", "4"]);
+    expect([...ann.matchAll(/data-note="([\d:]+)"/g)].map((m) => m[1])).toEqual(["3:0", "4:1"]);
+    const plain = renderChart(chart).pages.join("");
+    expect(plain).not.toMatch(/data-section|data-note/);
   });
 });

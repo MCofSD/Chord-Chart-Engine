@@ -11,7 +11,7 @@ import type { Chart, NotationBlock } from "../../src/model/chart.js";
 import { renderNotation, type NotationRender } from "../../src/notation/render.js";
 import { parseChartText, writeChartText, type Problem } from "../../src/text-format/index.js";
 import { lyricText } from "../../src/text-format/canonical.js";
-import { chordAt, insertRepeat, insertSection, lineStartAt, repeatChoices, setChordAt, setLineStart, setSyllables, splitOf, type ChordTarget, type EditResult, type Place } from "../../src/text-format/edit.js";
+import { chordAt, deleteNote, deleteSection, editSection, insertRepeat, insertSection, lineStartAt, moveSection, repeatChoices, repeatInfo, sectionInfo, setRepeat, setChordAt, setLineStart, setSyllables, splitOf, type ChordTarget, type EditResult, type Place } from "../../src/text-format/edit.js";
 import { SECTION_TYPES } from "../../src/text-format/parse.js";
 import type { SectionType } from "../../src/model/chart.js";
 import { relink } from "../../src/text-format/link.js";
@@ -342,7 +342,9 @@ pagesEl.addEventListener("mousemove", (e) => {
 });
 pagesEl.addEventListener("mouseleave", () => { cancelAnimationFrame(hoverFrame); clearHover(); showPlus(undefined); });
 
-// ---- Click a divider: insert a section or a Repeat line there (owner, 2026-11-14) ------
+// ---- Sections and Repeat lines from the page (owner, 2026-11-14) -------------------------
+// Click a divider to insert a section or a Repeat line there; click a section label or a
+// Repeat line to edit, move or delete it. One menu, three modes.
 
 const plus = $("insert-plus");
 const insertMenu = $("insert-menu");
@@ -351,8 +353,12 @@ const sectionType = $<HTMLSelectElement>("section-type");
 const repeatList = $("repeat-list");
 const repeatExtra = $<HTMLInputElement>("repeat-extra");
 const insertError = $("insert-error");
-/** Set while the Insert menu is open: the index the new section gets, and the band clicked. */
-let inserting: { at: number; band: Element; kind: "section" | "repeat" } | undefined;
+type SectionMenu =
+  | { mode: "insert"; at: number; el: Element; kind: "section" | "repeat" }
+  | { mode: "section"; si: number; el: Element; kind: "section"; repeatedBy: number; count: number }
+  | { mode: "note"; si: number; bi: number; el: Element; kind: "repeat"; editable: boolean; ownSection: boolean; count: number };
+/** Set while the menu is open. */
+let inserting: SectionMenu | undefined;
 
 sectionType.innerHTML = `<option value="">Automatic (from the label)</option>` +
   SECTION_TYPES.map((t) => `<option value="${t}">${t}</option>`).join("");
@@ -393,54 +399,135 @@ function updateRepeatPreview(): void {
 
 const escHtml = (t: string) => t.replace(/[&<>"]/g, (ch) => `&#${ch.charCodeAt(0)};`);
 
+/** Fills the Repeat list with the sections before section `at`, ticking `ticked`. Returns how many there are. */
+function fillRepeatList(at: number, ticked: number[] = []): number {
+  const choices = repeatChoices(text.value, at);
+  // A ticked section that the list would skip (an older one with the same label) is still shown.
+  for (const t of ticked) {
+    const s = shown?.sections[t];
+    if (s?.label && !choices.some((c) => c.index === t)) choices.push({ index: t, label: s.label, type: s.type });
+  }
+  choices.sort((a, b) => a.index - b.index);
+  repeatList.innerHTML = choices.length
+    ? choices.map((c) => `<label><input type="checkbox" value="${c.index}"${ticked.includes(c.index) ? " checked" : ""}> ${escHtml(c.label)}</label>`).join("")
+    : `<span>No labeled section above this line yet.</span>`;
+  return choices.length;
+}
+
+/** Opens the menu in one of its modes: tabs only for inserting; Move and Delete only for editing. */
+function showSectionMenu(e: MouseEvent, state: SectionMenu, head: string, where: string): void {
+  inserting = state;
+  state.el.classList.add("insert-hl");
+  $("insert-head").textContent = head;
+  $("insert-where").textContent = where;
+  insertMenu.setAttribute("aria-label", head);
+  insertError.textContent = "";
+  $("insert-tabs").hidden = state.mode !== "insert";
+  $("insert-edit").hidden = state.mode === "insert";
+  $("insert-apply").textContent = state.mode === "insert" ? "Insert" : "Apply";
+  const editable = state.mode !== "note" || state.editable;
+  $("insert-apply").hidden = !editable;
+  $("note-text-only").hidden = editable;
+  if (state.mode !== "insert") {
+    const last = state.count - 1;
+    const canMove = state.mode === "section" || state.ownSection;
+    $<HTMLButtonElement>("move-up").disabled = !canMove || state.si === 0;
+    $<HTMLButtonElement>("move-down").disabled = !canMove || state.si === last;
+  }
+  updateRepeatPreview();
+  placeMenu(insertMenu, e);
+  setInsertKind(state.kind);
+  if (!editable) $("insert-repeat-part").hidden = true;
+}
+
+const sectionName = (si: number) => shown?.sections[si]?.label || "Repeat";
+
+/** Click a divider: insert a section or a Repeat line there. */
 function openInsert(e: MouseEvent, band: Element): void {
   const at = Number(band.getAttribute("data-insert"));
-  inserting = { at, band, kind: "section" };
-  band.classList.add("insert-hl");
   showPlus(band);
-  const prev = shown?.sections[at - 1], next = shown?.sections[at];
-  const name = (s: typeof prev) => (s ? s.label || "Repeat" : "");
-  $("insert-where").textContent = prev && next ? `between ${name(prev)} and ${name(next)}` : prev ? `after ${name(prev)}` : next ? `before ${name(next)}` : "";
+  const n = shown?.sections.length ?? 0;
   sectionLabel.value = "";
   sectionType.value = "";
   repeatExtra.value = "";
-  const choices = repeatChoices(text.value, at);
-  repeatList.innerHTML = choices.length
-    ? choices.map((c) => `<label><input type="checkbox" value="${c.index}"> ${escHtml(c.label)}</label>`).join("")
-    : `<span>No labeled section above this line yet.</span>`;
-  insertMenu.querySelector<HTMLButtonElement>('[data-insert-kind="repeat"]')!.disabled = !choices.length;
-  updateRepeatPreview();
-  placeMenu(insertMenu, e);
-  setInsertKind("section");
+  const choices = fillRepeatList(at);
+  insertMenu.querySelector<HTMLButtonElement>('[data-insert-kind="repeat"]')!.disabled = !choices;
+  const where = at > 0 && at < n ? `between ${sectionName(at - 1)} and ${sectionName(at)}` : at > 0 ? `after ${sectionName(at - 1)}` : n ? `before ${sectionName(0)}` : "";
+  showSectionMenu(e, { mode: "insert", at, el: band, kind: "section" }, "Insert here", where);
+}
+
+/** Click a section label: rename it, change its type, move or delete it. */
+function openSection(e: MouseEvent, el: Element): void {
+  const si = Number(el.getAttribute("data-section"));
+  const info = sectionInfo(text.value, si);
+  if (!info) return;
+  sectionLabel.value = info.label;
+  sectionType.value = info.type === info.autoType ? "" : info.type;
+  showSectionMenu(e, { mode: "section", si, el, kind: "section", repeatedBy: info.repeatedBy, count: info.count }, "Section", info.label);
+  sectionLabel.select();
+}
+
+/** Click a Repeat line (or another full-width note): change what it repeats, move or delete it. */
+function openNote(e: MouseEvent, el: Element): void {
+  const [si, bi] = el.getAttribute("data-note")!.split(":").map(Number) as [number, number];
+  const info = repeatInfo(text.value, si, bi);
+  if (!info) return;
+  repeatExtra.value = info.extra;
+  fillRepeatList(si, info.targets ?? []);
+  const count = shown?.sections.length ?? 0;
+  showSectionMenu(e, { mode: "note", si, bi, el, kind: "repeat", editable: info.targets !== undefined, ownSection: info.ownSection, count },
+    info.targets ? "Repeat line" : "Note line", info.targets ? "" : `“${info.text}”`);
 }
 
 function closeInsert(): void {
   insertMenu.hidden = true;
-  inserting?.band.classList.remove("insert-hl");
+  inserting?.el.classList.remove("insert-hl");
   inserting = undefined;
   plus.hidden = true;
 }
 
-function applyInsert(): void {
-  if (!inserting) return;
-  const { at, kind } = inserting;
-  let r: EditResult;
-  if (kind === "section") {
-    const type = sectionType.value as SectionType | "";
-    r = insertSection(text.value, at, type ? { label: sectionLabel.value, type } : { label: sectionLabel.value });
-  } else {
-    r = insertRepeat(text.value, at, { targets: repeatTargets(), extra: repeatExtra.value });
-  }
+/** Puts an edit's text in place as one undo step, selecting lines `from`..`to` (or the caret at `from`). */
+function applyEdit(r: EditResult, caretOnly = false): void {
   if ("error" in r) { insertError.textContent = r.error; return; }
   closeInsert();
   const lines = r.text.split("\n");
   const offset = (line: number) => lines.slice(0, line - 1).reduce((n, l) => n + l.length + 1, 0);
-  // A new section: the caret goes on the empty line under its heading, ready for its first line.
-  // A Repeat line: it is selected.
-  if (kind === "section") replaceText(r.text, offset(r.from + 1));
+  if (caretOnly || r.to < r.from) replaceText(r.text, Math.min(offset(r.from), r.text.length));
   else replaceText(r.text, offset(r.from), offset(r.to + 1) - 1);
   baseline = r.text;
   render();
+}
+
+function applyInsert(): void {
+  const st = inserting;
+  if (!st) return;
+  const type = sectionType.value as SectionType | "";
+  const label = type ? { label: sectionLabel.value, type } : { label: sectionLabel.value };
+  const repeat = { targets: repeatTargets(), extra: repeatExtra.value };
+  if (st.mode === "insert") {
+    // A new section: the caret goes on the empty line under its heading, ready for its first line.
+    if (st.kind === "section") {
+      const r = insertSection(text.value, st.at, label);
+      applyEdit("error" in r ? r : { ...r, from: r.from + 1, to: r.from + 1 }, true);
+    } else applyEdit(insertRepeat(text.value, st.at, repeat));
+  } else if (st.mode === "section") applyEdit(editSection(text.value, st.si, label));
+  else if (st.editable) applyEdit(setRepeat(text.value, st.si, st.bi, repeat));
+}
+
+function moveCurrent(dir: -1 | 1): void {
+  const st = inserting;
+  if (!st || st.mode === "insert") return;
+  applyEdit(moveSection(text.value, st.si, dir));
+}
+
+function deleteCurrent(): void {
+  const st = inserting;
+  if (!st || st.mode === "insert") return;
+  if (st.mode === "section") {
+    const n = st.repeatedBy;
+    if (n && !confirm(`${n} Repeat ${n === 1 ? "line points" : "names point"} to this section; after deleting it, ${n === 1 ? "it points" : "they point"} nowhere. Delete the section and all its lines?`)) return;
+    applyEdit(deleteSection(text.value, st.si), true);
+  } else applyEdit(deleteNote(text.value, st.si, st.bi), true);
 }
 
 insertMenu.addEventListener("click", (e) => {
@@ -449,6 +536,9 @@ insertMenu.addEventListener("click", (e) => {
   if (b.dataset.insertKind) setInsertKind(b.dataset.insertKind as "section" | "repeat");
   else if (b.id === "insert-apply") applyInsert();
   else if (b.id === "insert-cancel") closeInsert();
+  else if (b.id === "move-up") moveCurrent(-1);
+  else if (b.id === "move-down") moveCurrent(1);
+  else if (b.id === "section-delete") deleteCurrent();
 });
 insertMenu.addEventListener("change", updateRepeatPreview);
 repeatExtra.addEventListener("input", updateRepeatPreview);
@@ -514,10 +604,14 @@ pagesEl.addEventListener("click", (e) => {
   if (!h) {
     const rect = (e.target as Element).closest?.("rect[data-line-start]");
     const band = (e.target as Element).closest?.("rect[data-insert]");
+    const label = (e.target as Element).closest?.("g[data-section]");
+    const note = (e.target as Element).closest?.("g[data-note]");
     closeMenu();
     closeInsert();
     if (rect) { clearHover(); openLineStart(e, rect); }
     else if (band) { clearHover(); openInsert(e, band); }
+    else if (label) { clearHover(); openSection(e, label); }
+    else if (note) { clearHover(); openNote(e, note); }
     return;
   }
   closeInsert();

@@ -20,6 +20,8 @@ export interface ParseResult {
   sources: LineSource[];
   /** The text line (1-based) where each section starts: its "#" heading, or the line that opened it. */
   sectionLines: number[];
+  /** The text line (1-based) of each note block ("Repeat ..." and other full-width notes). */
+  noteLines: { section: number; block: number; line: number }[];
 }
 
 /** The text lines (1-based) a line block was read from. */
@@ -235,6 +237,7 @@ export function parseChartText(src: string): ParseResult {
   const problems: Problem[] = [];
   const sources: LineSource[] = [];
   const sectionLines: number[] = [];
+  const noteLines: ParseResult["noteLines"] = [];
   const problem = (line: number, message: string) => problems.push({ line, message });
   const raw = src.replace(/^﻿/, "").replace(/\r\n?/g, "\n").split("\n");
   const lines = raw.map((l, k) => {
@@ -323,6 +326,7 @@ export function parseChartText(src: string): ParseResult {
         chart.sections.push(cur);
         sectionLines.push(no);
       }
+      noteLines.push({ section: chart.sections.length - 1, block: cur.blocks.length, line: no });
       cur.blocks.push(readNote(line, chart.sections.slice(0, -1), (m) => problem(no, m)));
       afterBlank = false;
       i++;
@@ -350,5 +354,5 @@ export function parseChartText(src: string): ParseResult {
   if (meta.title === undefined) { problem(1, "fill in the Title: line at the top"); meta.title = ""; }
   if (meta.artist === undefined) meta.artist = "";
   if (meta.key === undefined) { problem(1, "fill in the Key: line at the top, e.g. Key: G"); meta.key = ""; }
-  return { chart, problems, sources, sectionLines };
+  return { chart, problems, sources, sectionLines, noteLines };
 }
