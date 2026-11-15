@@ -73,7 +73,7 @@ npm run typecheck
 npm run editor
 ```
 
-This builds `song-editor.html` in the project folder. Double-click it, or drag it into Chrome or Edge. It opens with an example Song Chart; see [Song Chart editor](#song-chart-editor) for how to use it.
+This builds `song-editor.html` in the project folder. Double-click it, or drag it into Chrome or Edge. It opens with an example Song Chart; see [Song Chart editor](#song-chart-editor) for how to use it. To make a new Song Chart, see [Starting a new Song Chart from scratch](#starting-a-new-song-chart-from-scratch).
 
 ### 6. Optional: the owner's local song files
 
@@ -128,10 +128,45 @@ After [setting up](#getting-started), run `npm run editor`, then open `song-edit
 - The **Problems** list shows lines the editor can't read (click one to jump to the line) and layout warnings.
 - **Click a syllable on the page** to add, change or remove its chord. Hovering shades the syllable a click will pick (one sung syllable, e.g. "cat" in "dedicated"). A small menu opens with the chord already there (if any): type the chord as you would in a chord line (`G`, `|Am7[2&]`), choose **Before**, **On** or **After** the syllable, then **Apply** (or Enter). **Remove** takes the chord off. The edit is made in the text on the left, so Ctrl+Z undoes it.
 - **Click the space left of a line's lyric** (beside the section label, or the gap before a lyric that comes in late) for a chord that comes before the lyric, as at the start of Since U Been Gone. The menu has **Chord on beat 1** (already filled in with the line's first chord) and **Lyric comes in on beat**: type `2` (or `3`, `1&`…) and the chord stays on beat 1 at the left edge while the lyric moves right to its beat. Leave the beat empty to start the lyric with the bar again. This writes `@2` at the start of the lyric line.
-- **Click a gray divider line** between sections (a **+** shows at its left end) to insert something there. **New section** asks for the label (`Chorus`, `1st Ver`…) and, if the label doesn't say it, the type; the heading is added to the text and the caret waits on the empty line under it for you to type the section's lines. **Repeat section** lists the labeled sections above; tick one or more, add optional extra text such as `(2x)`, and a `Repeat {Chorus}` line is added (the repeated section's label takes its color). The divider under the title inserts before the first section. Ctrl+Z undoes the insert.
 - **Change how a word splits into syllables** in the same menu: the **Syllables** box shows the clicked word split by hyphens (`ded-i-cat-ed`). Type another split (`de-di-cat-ed`, or `fire` for one syllable) and Apply. It is saved in the chart's `Syllables:` header line, for this song only, and the hover, clicks and chord spacing follow it at once. Chords on that word move to the middle of their new syllable.
+- **Click a gray divider line** between sections (a **+** shows at its left end) to insert something there. **New section** asks for the label (`Chorus`, `1st Ver`…) and, if the label doesn't say it, the type; the heading is added to the text and the caret waits on the empty line under it for you to type the section's lines. **Repeat section** lists the labeled sections above; tick one or more, add optional extra text such as `(2x)`, and a `Repeat {Chorus}` line is added (the repeated section's label takes its color). The divider under the title inserts before the first section. Ctrl+Z undoes the insert.
 - **Chords follow their syllables** (the checkbox in the header, on by default): when you type more words into a lyric line, delete some, or make a chord name longer, every chord stays on the syllable it was on. The chord line is re-spaced for you, and the lyric opens a little room (`~` or a space) where a longer name would run into the next chord. Turn it off to line chords up by hand.
 - **How to write a Song Chart** (under the problems) lists every symbol. The format is described in [NOTES.md](NOTES.md#song-chart-text-format).
+
+### Starting a new Song Chart from scratch
+
+1. **Open the editor.** Run `npm run editor`, then open `song-editor.html` in Chrome or Edge. It opens with your last draft, or with the example Song Chart.
+2. **Clear the page.** If the current draft is worth keeping, save it first. Click **New**, then select all the text on the left (Ctrl+A) and delete it.
+3. **Type the header** at the top, one field per line: `Title:`, `Artist:`, `Year:`, `Key:`, and if you know them `Original key:`, `BPM:`, `Meter:` (e.g. `4/4`), `Tuning:` (e.g. `Eb Standard`), `Language:`. Title and Key are required; the Problems list asks for them until they are there.
+4. **Add the sections.** Type a heading for each one (`# Intro`, `# 1st Ver`, `# Chorus`, `# Bridge`…), or click the gray divider under the title in the preview and choose **New section**.
+5. **Type the lyrics** under each heading, one sung line per text line.
+6. **Add the chords.** Click a syllable in the preview, type its chord (`G`, `|Am7` with a bar line, `D[2&]` with a beat), choose **Before**, **On** or **After**, and press Enter. For a chord that comes before the lyric starts, click the blank space left of the line. You can also type a chord line by hand above the lyric line, with each chord's letter over the syllable it lands on.
+7. **Add the repeats.** Click the divider where the repeat goes and choose **Repeat section**, or type a line such as `Repeat {Chorus}`. The repeated section's label gets its color automatically.
+8. **Check it.** The **Problems** list must show no line problems (layout warnings are fine). Look at the pages on the right: the aim is two pages. Cover warnings name the chords that have no Chord Diagram in the voicing library yet.
+9. **Save.** Click **Save as JSON** and name the file after the song: this is the file to keep. **Save** (Ctrl+S) also writes the text version if you want a working copy.
+10. **Make the PDF.** Click **Print / Save as PDF**, choose "Save as PDF" and margins "None". The cover comes first, then the Song Chart.
+
+A short example (made-up lyrics). Each chord's letter sits over the syllable it lands on; `|` is a bar line:
+
+```
+Title: River Road
+Artist: Test Band
+Year: 2026
+Key: G
+BPM: 96
+
+# 1st Ver
+|G                C
+ Walking down the river road
+
+# Chorus
+|C        D     |G
+ Carry me home tonight
+
+Repeat {Chorus}
+```
+
+Notation riffs (images or MusicXML) are added with **Add files…** and are kept as JSON blocks in the text for now. Every other symbol (beat tags, stops, instruments in and out, gray chords, backup vocals) is listed under **How to write a Song Chart** in the editor.
 
 ## Importing a Song Chart PDF
 
