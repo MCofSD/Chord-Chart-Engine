@@ -79,7 +79,7 @@ The sample charts contain copyrighted lyrics. **The repo is public** (owner, 202
 
 Verse purple `#7030A0`, Refrain blue `#0070C0`/`#0000FF`, Chorus green `#00B050`. Colors repeat in "Repeat Verse, Refrain and Chorus" lines.
 
-**Rule (owner, 2026-11-08), replacing color-by-type:** a section label is colored **only when that section is repeated later** ("Repeat Chorus"). Colors go by priority from the top of the chart: the first repeated section is blue `#0070C0`, the second green `#00B050`, the third purple `#7030A0` (the font colors in "Awitin Mo At Isasayaw Ko"), whatever the section type. The color helps the reader find the part to go back to; sections that are not repeated print black. Paper charts point back to save space (aim: every chart fits two pages); a future web/tablet view may copy the repeated section in place instead.
+**Rule (owner, 2026-11-08), replacing color-by-type:** a section label is colored **only when that section is repeated later** ("Repeat Chorus"). Colors go by priority from the top of the chart: the first repeated section is blue `#0000FF` (owner, 2026-11-14; was `#0070C0`), the second green `#00B050`, the third purple `#7030A0` (the font colors in "Awitin Mo At Isasayaw Ko"), whatever the section type. The color helps the reader find the part to go back to; sections that are not repeated print black. Paper charts point back to save space (aim: every chart fits two pages); a future web/tablet view may copy the repeated section in place instead.
 
 ### 4.3 Cover Word files (verified on 6 files)
 

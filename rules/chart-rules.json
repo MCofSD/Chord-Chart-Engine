@@ -43,8 +43,8 @@
       "noBass": "#808080",
       "rule": "#A6A6A6"
     },
-    "_repeatColors": "Colors for repeated sections, in priority order (owner, 2026-11-08): the first repeated section from the top of the chart is blue, the second green, the third purple (the font colors in Awitin Mo At Isasayaw Ko). A label is colored only when a later 'Repeat ...' line points back to its section; other labels print black, regular. A fourth repeated section reuses purple, with a warning.",
-    "repeatColors": ["#0070C0", "#00B050", "#7030A0"],
+    "_repeatColors": "Colors for repeated sections, in priority order (owner, 2026-11-08): the first repeated section from the top of the chart is blue (#0000FF, owner 2026-11-14; was #0070C0), the second green, the third purple (the font colors in Awitin Mo At Isasayaw Ko). A label is colored only when a later 'Repeat ...' line points back to its section; other labels print black, regular. A fourth repeated section reuses purple, with a warning.",
+    "repeatColors": ["#0000FF", "#00B050", "#7030A0"],
     "header": {
       "baseline": 17.2,
       "_dateSize": "Date, Calibri 10, at the left margin.",
