@@ -282,6 +282,8 @@ export function parseChartText(src: string): ParseResult {
     const header = inHeader ? /^([A-Za-z][A-Za-z ]*?)\s*:\s*(.*)$/.exec(line) : null;
     if (header && HEADER_KEYS[header[1]!.toLowerCase()]) {
       const key = HEADER_KEYS[header[1]!.toLowerCase()]!, value = header[2]!.trim();
+      // An empty field (as in a new chart's header) is not filled in yet: leave it unset.
+      if (value === "") { i++; continue; }
       if (key === "year" || key === "bpm") {
         const v = Number(value);
         if (!Number.isFinite(v) || value === "") problem(no, `${header[1]} needs a number`);
@@ -345,8 +347,8 @@ export function parseChartText(src: string): ParseResult {
     section.blocks.push(buildLine(chord, lyric, rhythm, problem));
     afterBlank = false;
   }
-  if (meta.title === undefined) { problem(1, "add a Title: line at the top"); meta.title = ""; }
+  if (meta.title === undefined) { problem(1, "fill in the Title: line at the top"); meta.title = ""; }
   if (meta.artist === undefined) meta.artist = "";
-  if (meta.key === undefined) { problem(1, "add a Key: line at the top, e.g. Key: G"); meta.key = ""; }
+  if (meta.key === undefined) { problem(1, "fill in the Key: line at the top, e.g. Key: G"); meta.key = ""; }
   return { chart, problems, sources, sectionLines };
 }

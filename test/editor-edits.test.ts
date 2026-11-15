@@ -368,3 +368,19 @@ describe("insertSection / insertRepeat (click a divider on the page)", () => {
     expect([...ann.matchAll(/data-insert="(\d+)"/g)].map((m) => Number(m[1])).sort((x, y) => x - y)).toEqual([0, 1, 2, 3, 4]);
   });
 });
+
+describe("New: an empty header to fill in", () => {
+  const BLANK = "Title: \nArtist: \nYear: \nKey: \nOriginal key: \nBPM: \n\n";
+  it("reads with only the reminders for Title and Key, and renders", () => {
+    const r = parseChartText(BLANK);
+    expect(r.problems.map((p) => p.message)).toEqual(["fill in the Title: line at the top", "fill in the Key: line at the top, e.g. Key: G"]);
+    expect(r.chart.meta.year).toBeUndefined();
+    expect(r.chart.meta.bpm).toBeUndefined();
+    expect(renderChart(r.chart, { annotate: true }).pages[0]).toContain('data-insert="0"');
+  });
+  it("takes a first section from the divider under the title", () => {
+    const r = insertSection(BLANK.replace("Title: ", "Title: T").replace("Key: ", "Key: G"), 0, { label: "Intro" });
+    if ("error" in r) throw new Error(r.error);
+    expect(parseChartText(r.text).chart.sections.map((s) => s.label)).toEqual(["Intro"]);
+  });
+});

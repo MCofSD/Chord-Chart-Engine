@@ -136,8 +136,8 @@ After [setting up](#getting-started), run `npm run editor`, then open `song-edit
 ### Starting a new Song Chart from scratch
 
 1. **Open the editor.** Run `npm run editor`, then open `song-editor.html` in Chrome or Edge. It opens with your last draft, or with the example Song Chart.
-2. **Clear the page.** If the current draft is worth keeping, save it first. Click **New**, then select all the text on the left (Ctrl+A) and delete it.
-3. **Type the header** at the top, one field per line: `Title:`, `Artist:`, `Year:`, `Key:`, and if you know them `Original key:`, `BPM:`, `Meter:` (e.g. `4/4`), `Tuning:` (e.g. `Eb Standard`), `Language:`. Title and Key are required; the Problems list asks for them until they are there.
+2. **Click New.** If the current draft is worth keeping, save it first. New opens an empty header (`Title:`, `Artist:`, `Year:`, `Key:`, `Original key:`, `BPM:`) with the caret after `Title: `.
+3. **Fill in the header.** Title and Key are required; the Problems list reminds you until they are filled in. Leave a field empty if you don't know it yet. You can add `Meter:` (e.g. `4/4`), `Tuning:` (e.g. `Eb Standard`) or `Language:` lines too.
 4. **Add the sections.** Type a heading for each one (`# Intro`, `# 1st Ver`, `# Chorus`, `# Bridge`…), or click the gray divider under the title in the preview and choose **New section**.
 5. **Type the lyrics** under each heading, one sung line per text line.
 6. **Add the chords.** Click a syllable in the preview, type its chord (`G`, `|Am7` with a bar line, `D[2&]` with a beat), choose **Before**, **On** or **After**, and press Enter. For a chord that comes before the lyric starts, click the blank space left of the line. You can also type a chord line by hand above the lyric line, with each chord's letter over the syllable it lands on.

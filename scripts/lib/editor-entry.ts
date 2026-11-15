@@ -37,6 +37,9 @@ let saveHandle: FileSystemFileHandle | undefined;
 /** Where "Save as JSON" last wrote, so the next save goes to the same file. */
 let jsonHandle: FileSystemFileHandle | undefined;
 
+/** What New opens: an empty header to fill in; sections are added from the page or typed. */
+const BLANK = "Title: \nArtist: \nYear: \nKey: \nOriginal key: \nBPM: \n\n";
+
 /** The starting chart: the made-up demo, without its intro (a notation image the page doesn't have). */
 function starter(): string {
   const chart = structuredClone(demo) as unknown as Chart;
@@ -621,7 +624,13 @@ $("save").addEventListener("click", () => void save());
 $("save-json").addEventListener("click", () => void saveJson());
 $("print").addEventListener("click", () => window.print());
 $("new").addEventListener("click", () => {
-  if (confirm("Start over from the example Song Chart? Unsaved changes are lost.")) { saveHandle = undefined; jsonHandle = undefined; setText(starter(), "chart.chart.txt"); }
+  if (!confirm("Start a new, empty Song Chart? Unsaved changes are lost.")) return;
+  saveHandle = undefined;
+  jsonHandle = undefined;
+  setText(BLANK, "chart.chart.txt");
+  // The caret after "Title: ", ready to type.
+  text.focus();
+  text.setSelectionRange(7, 7);
 });
 
 let draft: { name: string; text: string } | undefined;
