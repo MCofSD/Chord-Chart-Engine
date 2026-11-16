@@ -68,6 +68,11 @@ First guesses or measurements from too few samples. Each is in [rules/chart-rule
 
 **V1. Before/after chords.** A "before" chord's weighted middle sits on the syllable's start, an "after" chord's on its end (offsets 0). Inside a word the chord keeps 2 pt from the neighbouring syllable, with a hyphen; between words a "before" chord's letter may reach 4 pt over the previous word. The importer reads a chord as before/after when its letter sits across the syllable's start/end by at least 1.5 pt and its middle is nearer that edge than the syllable's middle. Check on more charts; So Easy still reads some chords as before/after that may be "on" (they are flagged in review.txt). (`render.spacing.beforeOffset` / `afterOffset` / `placePad` / `beforeWordOverlap`, `import.straddleMin`)
 
+*To re-examine (owner, 2026-11-15):* how far before/after chords hang and push the lyric, now that extensions and slash basses weigh less (0.25 / 0.125), in these cases:
+- long chords whose weighted middle sits far from the middle of their letters (e.g. `C♯m7(♯11)/G♯`);
+- the previous word (for "before") or the next word (for "after") is too close;
+- the syllable is very short and the chord is longer than its lyric.
+
 **V3. Row height.** 20 pt normally, squeezed down to 17 pt at most to keep a chart on 2 pages. (`render.row.height`, `render.squish`)
 
 **V4. Bottom of the page.** Sections end no lower than 779 pt. (`render.page.bottomLimit`)
