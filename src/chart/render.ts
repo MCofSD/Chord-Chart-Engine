@@ -60,7 +60,7 @@ interface RepeatColors { bySection: Map<number, string>; refs: Map<SectionRef, n
 
 /**
  * Repeated sections are colored in priority order from the top of the chart:
- * blue, green, purple (owner, 2026-11-08). A fourth reuses the last color.
+ * blue, green, purple, brown, orange, violet red (owner, 2026-11-08 and 2026-11-15). A seventh reuses the last color.
  */
 function repeatColors(chart: Chart, warnings: string[]): RepeatColors {
   const { targets, refs, unresolved } = resolveRepeats(chart);

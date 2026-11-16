@@ -48,8 +48,6 @@ Last updated: 2026-11-10.
 
 **Q12. A third repeated riff.** What color? *Now: light blue is reused.*
 
-**Q13. A fourth repeated section.** What color? *Now: purple is reused.*
-
 **Q14. Gray "no bass" chords.** What exact gray? *Now: the lyric gray `#808080`.*
 
 **Q18. How much may placement give way to fit a line?** (owner, 2026-11-10) The originals sometimes bend the spacing rules to keep a line on one row, so not every measured gap or overlap is the rule itself. How far may before/after chords, their clearances (`placePad`, `beforeWordOverlap`) and syllable spacing be squeezed when a line is tight, and in what order relative to the existing steps (rhythm spacing flexes, then narrowing to 82%, then wrapping)? *Now: the placement clearances are fixed and don't flex; only rhythm spacing and narrowing do.* Keep in mind for any new spacing rule; measurements from tight lines in the originals may already be squeezed.

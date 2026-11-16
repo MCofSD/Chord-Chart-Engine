@@ -36,7 +36,7 @@ describe("renderChart", () => {
     type: "other", label: "", blocks: [{ kind: "note", pieces: [{ text: "Repeat " }, ref] }],
   });
 
-  const [BLUE, GREEN, PURPLE] = CHART.repeatColors;
+  const [BLUE, GREEN, PURPLE, BROWN, ORANGE, VIOLET] = CHART.repeatColors;
   const labelFill = (svg: string, s: string) => attr(texts(svg).find((x) => x.text === s && x.attrs.includes(`font-size="${CHART.section.labelSize}"`))!.attrs, "fill");
 
   it("colors a section label only when a later Repeat line points back to it", () => {
@@ -77,13 +77,18 @@ describe("renderChart", () => {
     expect(r.warnings).toEqual([]);
   });
 
-  it("gives a section repeated twice one color, and warns when a fourth repeated section reuses purple", () => {
+  it("gives a section repeated twice one color, colors the 4th to 6th repeated sections brown, orange, violet red, and warns when a seventh reuses the last", () => {
     const twice = renderChart(chart([section("chorus", "Chorus"), repeat({ section: "chorus", text: "Chorus" }), repeat({ section: "chorus", text: "Chorus" })]));
     expect(labelFill(twice.pages[0]!, "Chorus")).toBe(BLUE);
-    const four = ["Intro", "Verse", "Bridge", "Outro"].map((l) => section("other", l, 1));
-    const refs = four.map((s) => repeat({ section: "other", text: s.label, label: s.label }));
-    const r = renderChart(chart([...four, ...refs]));
-    expect(["Intro", "Verse", "Bridge", "Outro"].map((s) => labelFill(r.pages[0]!, s))).toEqual([BLUE, GREEN, PURPLE, PURPLE]);
+    expect([BROWN, ORANGE, VIOLET]).toEqual(["#A52A2A", "#CC6600", "#C71585"]);
+    const labels = ["Intro", "Verse", "Bridge", "Solo", "Interlude", "Tag", "Outro"];
+    const seven = labels.map((l) => section("other", l, 1));
+    const refs = seven.map((s) => repeat({ section: "other", text: s.label, label: s.label }));
+    const six = renderChart(chart([...seven.slice(0, 6), ...refs.slice(0, 6)]));
+    expect(labels.slice(0, 6).map((s) => labelFill(six.pages[0]!, s))).toEqual([BLUE, GREEN, PURPLE, BROWN, ORANGE, VIOLET]);
+    expect(six.warnings).toEqual([]);
+    const r = renderChart(chart([...seven, ...refs]));
+    expect(labels.map((s) => labelFill(r.pages[0]!, s))).toEqual([BLUE, GREEN, PURPLE, BROWN, ORANGE, VIOLET, VIOLET]);
     expect(r.warnings).toEqual([expect.stringContaining('"Outro"')]);
   });
 
