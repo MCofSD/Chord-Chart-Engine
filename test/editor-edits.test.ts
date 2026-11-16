@@ -114,6 +114,68 @@ describe("setChordAt (click a syllable on the page)", () => {
     expect(anchors(line(r.text, 1))).toEqual(["C@0", "D@3"]);
   });
 
+  describe("keeps the chord's beat and the syllable's rhythm mark the same (owner, 2026-11-15)", () => {
+    // "la la la la": syllables at 0, 3, 6, 9. The rhythm line times the third "la".
+    const text = "la la la la";
+    const withMark = (mark: string, head = HEAD) => `${head}|G\n${text}\n      ${mark}\n`;
+    const third = syllableAt(text, 6)!;
+    const put = (src: string, group: string, place: "on" | "before" | "after" = "on") => setChordAt(src, { section: 0, block: 0, syllable: third }, { group, place });
+    const result = (src: string, group: string, place?: "on" | "before" | "after") => {
+      const r = put(src, group, place);
+      if ("error" in r) throw new Error(r.error);
+      const b = line(r.text);
+      const chord = b.above.flatMap((a) => a.items).find((i) => i.t === "chord" && i.chord.root === "C");
+      return { beats: chord?.t === "chord" ? chord.beats : undefined, rhythm: b.rhythm, timing: lineTiming(b, parseChartText(r.text).chart.meta.meter) };
+    };
+
+    it("an untagged chord takes the syllable's beat when the default would put it elsewhere", () => {
+      const r = result(withMark("3&"), "C");
+      expect(r.beats).toBe("3&");
+      expect(r.rhythm).toEqual([{ at: 6, beat: "3&" }]);
+      expect(r.timing.times[1]).toBe(2.5);
+      expect(r.timing.warnings).toEqual([]);
+    });
+
+    it("an untagged chord stays untagged when its default beat is the syllable's beat", () => {
+      const r = result(withMark("3"), "C");
+      expect(r.beats).toBeUndefined();
+      expect(r.rhythm).toEqual([{ at: 6, beat: "3" }]);
+    });
+
+    it("a typed beat tag rewrites the syllable's rhythm mark", () => {
+      const r = result(withMark("3&"), "C[4]");
+      expect(r.beats).toBe("4");
+      expect(r.rhythm).toEqual([{ at: 6, beat: "4" }]);
+      // A list tag: the mark takes its first beat.
+      expect(result(withMark("3&"), "C[2&,3]").rhythm).toEqual([{ at: 6, beat: "2&" }]);
+    });
+
+    it("writes the bar into the mark when the tagged chord is in a later bar of the line", () => {
+      const src = `${HEAD}|G    |-\n${text}\n      3&\n`; // "|-" starts bar 2 on the second "la"
+      expect(result(src, "C[2]").rhythm).toEqual([{ at: 6, beat: "2", bar: 2 }]);
+    });
+
+    it("uses the meter in force (3/4 has no untagged middle beat)", () => {
+      const r = result(withMark("2", "Title: T\nKey: G\nMeter: 3/4\n\n# Verse\n"), "C");
+      expect(r.beats).toBe("2");
+      expect(r.timing.warnings).toEqual([]);
+    });
+
+    it("refuses when the syllable's beat is outside the chord's bar", () => {
+      expect(put(withMark("2:1"), "C")).toMatchObject({ error: expect.stringMatching(/bar 2, beat 1, outside this chord's bar/) });
+    });
+
+    it("leaves before and after chords, and syllables without a mark, alone", () => {
+      for (const place of ["before", "after"] as const) {
+        const r = result(withMark("3&"), "C", place);
+        expect(r.beats, place).toBeUndefined();
+        expect(r.rhythm, place).toEqual([{ at: 6, beat: "3&" }]);
+      }
+      const plain = setChordAt(`${HEAD}|G\n${text}\n`, { section: 0, block: 0, syllable: third }, { group: "C", place: "on" });
+      expect("error" in plain ? plain.error : line(plain.text).rhythm).toBeUndefined();
+    });
+  });
+
   it("keeps a blank line when the last chord goes from a lyric under a chord-only line", () => {
     const src2 = HEAD + "|G |C\n\nG\nla la\n";
     const r = setChordAt(src2, { section: 0, block: 1, syllable: syllableAt("la la", 0)! }, { place: "on" });

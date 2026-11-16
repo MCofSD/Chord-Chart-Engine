@@ -5,7 +5,8 @@
  * new text, with only that line's chord, lyric and rhythm lines rewritten.
  * Pure: no DOM.
  */
-import { beatOffset, resolveRepeats, type Anchor, type Block, type Chart, type ChartMeta, type LineBlock, type NoteBlock, type Section, type SectionRef, type SectionType } from "../model/chart.js";
+import { DEFAULT_METER, lineTiming, type LineTiming } from "../chart/timing.js";
+import { beatOffset, resolveRepeats, type Anchor, type Block, type Chart, type ChartMeta, type ChordLineItem, type LineBlock, type Meter, type NoteBlock, type Section, type SectionRef, type SectionType } from "../model/chart.js";
 import { sectionTypeOf } from "../rules/index.js";
 import { syllableAt, syllables, type SyllableSpan } from "../text/syllables.js";
 import { canonicalBlock, lyricText, stableJson } from "./canonical.js";
@@ -82,7 +83,8 @@ export function replaceBlock(srcIn: string, section: number, blockIndex: number,
  * (`G`, `|Bbm7/C[2&]`); undefined removes the syllable's chord.
  */
 export function setChordAt(src: string, target: ChordTarget, change: { group?: string; place: Place }): EditResult {
-  const block = parseChartText(src).chart.sections[target.section]?.blocks[target.block];
+  const parsed = parseChartText(src);
+  const block = parsed.chart.sections[target.section]?.blocks[target.block];
   if (block?.kind !== "line") return { error: "that line was not found in the text" };
   const next: LineBlock = structuredClone(block);
   const idx = anchorIndex(next, target.syllable);
@@ -100,8 +102,74 @@ export function setChordAt(src: string, target: ChordTarget, change: { group?: s
     const anchor: Anchor = { at: change.place === "after" ? target.syllable.end : target.syllable.start, items: p.items };
     if (change.place !== "on") anchor.place = change.place;
     insertAt(next.above, anchor);
+    if (change.place === "on") {
+      const synced = syncRhythmMark(next, anchor, target.syllable, meterBefore(parsed.chart, target.section, target.block));
+      if (synced) return synced;
+    }
   }
   return replaceBlock(src, target.section, target.block, next);
+}
+
+/** The meter in force at the start of line (section, block): the chart's, changed by inline meter marks on earlier lines. */
+function meterBefore(chart: Chart, section: number, block: number): Meter {
+  let meter = chart.meta.meter ?? DEFAULT_METER;
+  chart.sections.forEach((s, si) => s.blocks.forEach((b, bi) => {
+    if (b.kind === "line" && (si < section || (si === section && bi < block))) meter = lineTiming(b, meter).endMeter;
+  }));
+  return meter;
+}
+
+const SUBDIVISION_NAMES: [number, string][] = [[0, ""], [1 / 4, "e"], [1 / 3, "te"], [1 / 2, "&"], [2 / 3, "ta"], [3 / 4, "a"]];
+
+/** Beat-tag name of a position within a bar, in beats after beat 1 (0 -> "1", 1.5 -> "2&"); undefined off the grid. */
+function beatName(offset: number): string | undefined {
+  const whole = Math.floor(offset + 1e-6);
+  const sub = SUBDIVISION_NAMES.find(([f]) => Math.abs(offset - whole - f) < 1e-6);
+  return sub && whole >= 0 ? `${whole + 1}${sub[1]}` : undefined;
+}
+
+/** Bar (1-based) holding time t, and t's beat name in that bar. */
+function barBeat(timing: LineTiming, t: number): { bar: number; beat: string } | undefined {
+  const k = timing.bars.findIndex((b) => t >= b.start - 1e-6 && t < b.start + b.beats - 1e-6);
+  const beat = k >= 0 ? beatName(t - timing.bars[k]!.start) : undefined;
+  return beat ? { bar: k + 1, beat } : undefined;
+}
+
+/**
+ * A chord placed on a syllable that has a rhythm mark must say the same beat
+ * (owner, 2026-11-15). A beat tag typed on the chord wins: the mark is
+ * rewritten to it. Without a tag, the chord takes the mark's beat as its tag
+ * when the default (beat 1 or the middle beat) would put it elsewhere.
+ * Changes `block` in place; returns an error when they can't be made to match.
+ */
+function syncRhythmMark(block: LineBlock, anchor: Anchor, syl: SyllableSpan, meter: Meter): { error: string } | undefined {
+  const mi = (block.rhythm ?? []).findIndex((m) => m.at >= syl.start && m.at < syl.end);
+  if (mi < 0) return undefined;
+  const mark = block.rhythm![mi]!;
+  const timing = lineTiming(block, meter);
+  const ai = timing.anchors.indexOf(anchor);
+  const chordT = timing.times[ai];
+  const bar = [...timing.bars].reverse().find((b) => b.anchor <= ai);
+  if (chordT === undefined && !bar) return undefined; // before the first bar line: untimed
+  const timed = anchor.items.find((i): i is Extract<ChordLineItem, { t: "chord" | "bass" }> => i.t === "chord" || i.t === "bass");
+  if (!timed) return undefined;
+  if (timed.beats !== undefined) {
+    // The chord's beat tag wins: rewrite the syllable's mark.
+    if (chordT === undefined) return undefined; // the timing warning shows on the page
+    const at = barBeat(timing, chordT);
+    if (!at) return undefined;
+    block.rhythm![mi] = { at: mark.at, beat: at.beat, ...(at.bar !== 1 ? { bar: at.bar } : {}) };
+    return undefined;
+  }
+  const markT = lineTiming({ kind: "line", lyrics: block.lyrics, above: block.above, rhythm: [mark] }, meter).marks[0]?.t;
+  if (markT === undefined || (chordT !== undefined && Math.abs(chordT - markT) < 1e-6)) return undefined;
+  // No tag: the chord takes the syllable's beat.
+  const where = `the rhythm line puts this syllable on ${mark.bar && mark.bar !== 1 ? `bar ${mark.bar}, ` : ""}beat ${mark.beat}`;
+  if (!bar || markT < bar.start - 1e-6 || markT >= bar.start + bar.beats - 1e-6) return { error: `${where}, outside this chord's bar; type the chord's beat, e.g. G[3], or fix the rhythm line` };
+  timed.beats = beatName(markT - bar.start)!;
+  const check = lineTiming(block, meter);
+  if (Math.abs((check.times[ai] ?? NaN) - markT) > 1e-6) return { error: `${where}, but the chord can't go there (it must come after the chord before it); type the chord's beat` };
+  return undefined;
 }
 
 /**
