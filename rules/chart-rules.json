@@ -95,10 +95,10 @@
       "baseline": 16.3
     },
     "chord": {
-      "_extensionWeight": "Weight of a chord's extension (everything after root, flat/sharp and minor 'm'), taken as one unit at its own middle, relative to one core symbol. Used to find the chord's beat point. The owner (2026-11-09) said extensions count for less but was unsure how much. (verify)",
-      "extensionWeight": 0.5,
-      "_bassWeight": "Weight of a slash bass ('/F#') as one unit at its own middle. Owner (2026-11-09): less than an extension, but not nothing. (verify)",
-      "bassWeight": 0.25,
+      "_extensionWeight": "Weight of a chord's extension (everything after root, flat/sharp and minor 'm'), taken as one unit at its own middle, relative to one core symbol. Used to find the chord's beat point. Owner: counts for less (2026-11-09); 0.25 (2026-11-15, was 0.5).",
+      "extensionWeight": 0.25,
+      "_bassWeight": "Weight of a slash bass ('/F#') as one unit at its own middle. Owner: less than an extension, but not nothing (2026-11-09); 0.125 (2026-11-15, was 0.25).",
+      "bassWeight": 0.125,
       "rootSize": 16,
       "_accidentalSize": "Flat/sharp after the root: 12 pt in the files ('B' 16 + 'b' 12).",
       "accidentalSize": 12,
