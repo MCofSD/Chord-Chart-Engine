@@ -326,6 +326,32 @@ describe("lyricEntry (lyric comes in after the downbeat)", () => {
     expect(midOf(laid, 0, 4)).toBeGreaterThanOrEqual(beatX(laid, above, 0) + per - 1e-6);
   });
 
+  it("a bare @ (no beat given): the chord in the space stays at the edge, the first syllable's chord sits over it", () => {
+    const d: Anchor = { at: 0, items: [chord("D")] };
+    const above = [downbeat, d];
+    const laid = layoutLine({ ...line(above, LA), lyricEntry: "" });
+    expect(laid.warnings).toEqual([]);
+    expect(laid.chords[0]!.x).toBeCloseTo(L, 6);
+    expect(beatX(laid, above, 1)).toBeCloseTo(laMid(laid), 6);
+    // Untagged second chord in the bar: beat 3, two beats after G.
+    expect(beatX(laid, above, 1)).toBeCloseTo(beatX(laid, above, 0) + 2 * per, 6);
+  });
+
+  it("a bare @ with only the chord in the space: the lyric starts after it", () => {
+    const laid = layoutLine(laLine({ lyricEntry: "" }));
+    expect(laid.chords[0]!.x).toBeCloseTo(L, 6);
+    expect(drawnCharX(laid, 0)).toBeGreaterThan(laid.chords[0]!.x + 1);
+  });
+
+  it("a second group at character 0 is the first syllable's chord, not at the edge", () => {
+    const d: Anchor = { at: 0, items: [chord("D", { beats: "2" })] };
+    const above = [downbeat, d];
+    const laid = layoutLine({ ...line(above, LA), lyricEntry: "2" });
+    expect(laid.chords[0]!.x).toBeCloseTo(L, 6);
+    expect(beatX(laid, above, 1)).toBeCloseTo(laMid(laid), 6);
+    expect(laMid(laid)).toBeCloseTo(beatX(laid, above, 0) + per, 6);
+  });
+
   it("without lyricEntry, the downbeat chord centers over the first syllable", () => {
     const laid = layoutLine(line([downbeat]));
     expect(beatX(laid, [downbeat], 0)).toBeCloseTo(midOf(laid, 0, 4), 6); // "Walk"

@@ -162,18 +162,24 @@ export function layoutLine(block: LineBlock, opts: LineOptions = {}): LaidLine {
   const tabStop = (x: number) => S.tabOrigin + Math.ceil((x - S.tabOrigin - 1e-6) / S.tabStop) * S.tabStop;
 
   // A lyric mark at character 0 (lyricEntry) means the lyric comes in after
-  // the downbeat: groups at character 0 are drawn first, on their own beat
-  // at the left edge, and the lyric then starts at its entry time.
+  // the downbeat: the chord in the space before it is drawn first, on its own
+  // beat at the left edge, and the lyric then starts at its entry time. An
+  // empty lyricEntry (owner, 2026-11-20) is late with no beat given: the lyric
+  // starts after that chord, or where the first syllable's own chord puts it.
   const marks = timing.marks.filter((m) => m.at <= text.length);
   let entry: number | undefined;
   while (marks.length && marks[0]!.at === 0) entry = marks.shift()!.t;
-  let entered = entry === undefined;
+  let entered = entry === undefined && block.lyricEntry !== "";
   const enter = () => {
     if (entered) return;
-    const half = syllableHalf(0);
-    lyricX = Math.max(lyricX, ideal(entry!) - half);
-    placedAt(entry!, lyricX + half);
     entered = true;
+    if (entry === undefined) {
+      if (chordEnd !== undefined) lyricX = Math.max(lyricX, chordEnd + S.groupGap);
+      return;
+    }
+    const half = syllableHalf(0);
+    lyricX = Math.max(lyricX, ideal(entry) - half);
+    placedAt(entry, lyricX + half);
   };
 
   let lastAt = -1;
@@ -192,11 +198,19 @@ export function layoutLine(block: LineBlock, opts: LineOptions = {}): LaidLine {
 
   // "On" groups at the same character keep their written order; sort is stable.
   const { anchors, times } = timing;
+  let edgeGroups = 0;
   for (const [ai, anchor] of anchors.entries()) {
     const at = Math.min(Math.max(anchor.at, 0), text.length);
     const place = anchor.place ?? "on";
     while (marks.length && marks[0]!.at <= at) placeMark(marks.shift()!);
-    if (!(place === "on" && at === 0)) enter();
+    // Before a late lyric, "on" groups at character 0 that come before the entry
+    // beat (no beat known: only the first) stay at the edge; a later one is the
+    // first syllable's chord.
+    const t0 = times[ai];
+    const atEdge = !entered && place === "on" && at === 0
+      && (entry !== undefined && t0 !== undefined ? t0 < entry - 1e-6 : edgeGroups === 0);
+    if (atEdge) edgeGroups++;
+    else enter();
     const { runs, beatPoint, core } = groupRuns(anchor.items);
     // A group with a beat point (a chord's weighted middle, a "-", a timed
     // stop) centers it over its syllable's middle; others align by their left edge.
@@ -223,7 +237,7 @@ export function layoutLine(block: LineBlock, opts: LineOptions = {}): LaidLine {
       const lead = measure(ins, at);
       if (lead === undefined) { emitUntil(at); ins = at; }
       // Groups at character 0 before a late lyric entry stay on beat 1 at the edge.
-      const sylHalf = beatPoint === undefined || (!entered && at === 0) ? 0 : syllableHalf(at);
+      const sylHalf = beatPoint === undefined || atEdge ? 0 : syllableHalf(at);
       const natural = lyricX + (ins === at ? 0 : lead!) + sylHalf - point;
       x = Math.max(natural, minX, timeX);
       openGap(x - natural, ins);

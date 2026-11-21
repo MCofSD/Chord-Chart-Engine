@@ -223,7 +223,7 @@ details td{padding:2px 10px 2px 0;vertical-align:top}
 </div>
 <div id="entry-part" hidden>
 <label for="entry-input">Lyric comes in on beat</label>
-<input id="entry-input" autocomplete="off" spellcheck="false" placeholder="with the bar (or 2, 3, 1&amp;…)">
+<input id="entry-input" autocomplete="off" spellcheck="false" placeholder="optional: 2, 3, 1&amp;…">
 </div>
 <p id="chord-error" role="alert"></p>
 <div class="menu-actions">

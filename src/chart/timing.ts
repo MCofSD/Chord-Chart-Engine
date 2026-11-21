@@ -123,7 +123,7 @@ export function lineTiming(block: LineBlock, meter: Meter = DEFAULT_METER): Line
     if (b === undefined) { warnings.push(`${what} "${beat}" is not a single beat (e.g. "2", "1&"); ignored`); return; }
     marks.push({ at, t: barStart(barNo) + b });
   };
-  if (block.lyricEntry !== undefined) addMark(0, block.lyricEntry, 1, "lyricEntry");
+  if (block.lyricEntry) addMark(0, block.lyricEntry, 1, "lyricEntry"); // "" = late, beat not given
   for (const m of block.rhythm ?? []) addMark(m.at, m.beat, m.bar ?? 1, "rhythm mark");
   marks.sort((a, b) => a.at - b.at);
 

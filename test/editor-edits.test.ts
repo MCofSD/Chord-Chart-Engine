@@ -283,33 +283,99 @@ describe("setLineStart (click the space before a line's lyric)", () => {
     return r.text;
   };
 
-  it("reads the beat-1 chord over the first syllable, and the lyric entry", () => {
-    expect(lineStartAt(src, 0, 0)).toEqual({ group: "|G" });
+  it("reads the chord in the space and the lyric entry; a lyric on the bar has none", () => {
+    expect(lineStartAt(src, 0, 0)).toEqual({}); // |G is the first syllable's own chord
     expect(lineStartAt(HEAD + "|G       C\n@2 Walking down\n", 0, 0)).toEqual({ group: "|G", entry: "2" });
-    expect(lineStartAt(HEAD + "      C\nWalking down\n", 0, 0)).toEqual({}); // C is on "ing", not the start
+    expect(lineStartAt(HEAD + "|G       C\n@ Walking down\n", 0, 0)).toEqual({ group: "|G" });
   });
 
-  it("moves the lyric to a later beat, keeping the chord on beat 1 at the left edge", () => {
-    const out = edit(src, { group: "|G", entry: "2" });
-    expect(line(out).lyricEntry).toBe("2");
-    expect(anchors(line(out))).toEqual(["|G@0", "C@12"]);
+  it("a chord in the space with no beat: the lyric comes in after it (a bare @)", () => {
+    const out = edit(HEAD + "      C\nWalking down\n", { group: "|Em" });
+    expect(anchors(line(out))).toEqual(["|Em@0", "C@6"]);
+    expect(line(out).lyricEntry).toBe("");
+    expect(out).toMatch(/\n@ Walking/);
   });
 
-  it("adds a beat-1 chord before a lyric that had none there", () => {
+  it("never touches the first syllable's own chord", () => {
+    const out = edit(src, { group: "|Em" });
+    expect(anchors(line(out))).toEqual(["|Em@0", "|G@1", "C@12"]);
+    expect(line(out).lyricEntry).toBe("");
+  });
+
+  it("takes an optional beat for the lyric", () => {
     const out = edit(HEAD + "      C\nWalking down\n", { group: "|Em", entry: "2" });
     expect(anchors(line(out))).toEqual(["|Em@0", "C@6"]);
     expect(line(out).lyricEntry).toBe("2");
   });
 
-  it("changes or removes the chord, and an empty beat puts the lyric back on the bar", () => {
-    const late = edit(src, { group: "|G", entry: "2" });
-    expect(anchors(line(edit(late, { group: "|Am", entry: "2" })))).toEqual(["|Am@0", "C@12"]);
-    expect(anchors(line(edit(late, { entry: "2" })))).toEqual(["C@12"]);
-    expect(line(edit(late, { group: "|G" })).lyricEntry).toBeUndefined();
+  it("changes or removes the chord; with neither chord nor beat the lyric is back on the bar", () => {
+    const late = HEAD + "|G       C\n@2 Walking down\n";
+    expect(anchors(line(edit(late, { group: "|Am", entry: "2" })))).toEqual(["|Am@0", "C@6"]);
+    expect(anchors(line(edit(late, { entry: "2" })))).toEqual(["C@6"]);
+    expect(line(edit(late, { group: "|G" })).lyricEntry).toBe("");
+    const back = line(edit(late, {}));
+    expect(anchors(back)).toEqual(["C@6"]);
+    expect(back.lyricEntry).toBeUndefined();
   });
 
   it("rejects a beat it can't read", () => {
     expect(setLineStart(src, 0, 0, { group: "|G", entry: "x" })).toHaveProperty("error");
+  });
+});
+
+describe("a chord on the first syllable after a beat-1 chord in the space before the lyric", () => {
+  const late = HEAD + "|G\n@2 Walking down\n";
+  const walk: ChordTarget = { section: 0, block: 0, syllable: syllableAt("Walking down", 0)! };
+  const set = (s: string, group?: string) => {
+    const r = setChordAt(s, walk, group === undefined ? { place: "on" } : { group, place: "on" });
+    if ("error" in r) throw new Error(r.error);
+    return r.text;
+  };
+  const beatsOf = (b: LineBlock) => b.above.map((a) => a.items.flatMap((i) => (i.t === "chord" ? [i.beats ?? ""] : [])).join(""));
+
+  it("keeps the beat-1 chord and puts the new one on the syllable, on the entry beat", () => {
+    const out = set(late, "D");
+    expect(anchors(line(out))).toEqual(["|G@0", "D@0"]);
+    expect(beatsOf(line(out))).toEqual(["", "2"]);
+    expect(line(out).lyricEntry).toBe("2");
+    expect(lineStartAt(out, 0, 0)).toEqual({ group: "|G", entry: "2" });
+  });
+
+  it("reads, replaces and removes only the syllable's chord", () => {
+    expect(chordAt(late, walk)).toBeUndefined();
+    const out = set(late, "D");
+    expect(chordAt(out, walk)?.group).toMatch(/^D/);
+    expect(anchors(line(set(out, "Em")))).toEqual(["|G@0", "Em@0"]);
+    expect(anchors(line(set(out, undefined)))).toEqual(["|G@0"]);
+  });
+
+  it("a typed beat moves the lyric entry", () => {
+    const out = set(late, "D[2&]");
+    expect(line(out).lyricEntry).toBe("2&");
+    expect(anchors(line(out))).toEqual(["|G@0", "D@0"]);
+  });
+
+  it("before any bar line, the chord shows the beat the rhythm line gives its syllable", () => {
+    // No bar line on the line; the rhythm line puts "Walk" on beat 2.
+    const src = HEAD + "G\n@ Walking down\n  2\n";
+    expect(line(src).rhythm).toEqual([{ at: 0, beat: "2" }]);
+    const out = set(src, "D");
+    expect(anchors(line(out))).toEqual(["G@0", "D@0"]);
+    expect(beatsOf(line(out))).toEqual(["", "2"]);
+    expect(line(out).rhythm).toEqual([{ at: 0, beat: "2" }]);
+    // A typed beat wins and moves the mark; beat 1 adds no tag.
+    expect(line(set(src, "D[2&]")).rhythm).toEqual([{ at: 0, beat: "2&" }]);
+    expect(beatsOf(line(set(HEAD + "G\n@ Walking down\n  1\n", "D")))).toEqual(["", ""]);
+  });
+
+  it("with no beat given anywhere, both chords are kept and neither gets a beat", () => {
+    const noBeat = HEAD + "|G\n@ Walking down\n";
+    const out = set(noBeat, "D");
+    expect(anchors(line(out))).toEqual(["|G@0", "D@0"]);
+    expect(beatsOf(line(out))).toEqual(["", ""]);
+    expect(line(out).lyricEntry).toBe("");
+    expect(chordAt(out, walk)?.group).toBe("D");
+    expect(anchors(line(set(out, "Em")))).toEqual(["|G@0", "Em@0"]);
   });
 });
 

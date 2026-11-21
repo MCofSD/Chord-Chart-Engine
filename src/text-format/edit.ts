@@ -6,10 +6,10 @@
  * Pure: no DOM.
  */
 import { DEFAULT_METER, lineTiming, type LineTiming } from "../chart/timing.js";
-import { beatOffset, resolveRepeats, type Anchor, type Block, type Chart, type ChartMeta, type ChordLineItem, type LineBlock, type Meter, type NoteBlock, type Section, type SectionRef, type SectionType } from "../model/chart.js";
+import { beatOffset, resolveRepeats, type Anchor, type Block, type Chart, type ChordLineItem, type LineBlock, type Meter, type NoteBlock, type RhythmMark, type Section, type SectionRef, type SectionType } from "../model/chart.js";
 import { sectionTypeOf } from "../rules/index.js";
-import { syllableAt, syllables, type SyllableSpan } from "../text/syllables.js";
-import { canonicalBlock, lyricText, stableJson } from "./canonical.js";
+import { syllables, type SyllableSpan } from "../text/syllables.js";
+import { canonicalBlock, stableJson } from "./canonical.js";
 import { HEADER_KEYS, parseChartText, SECTION_TYPES } from "./parse.js";
 import { groupText, parseGroup } from "./tokens.js";
 import { blockLines } from "./write.js";
@@ -27,13 +27,25 @@ export interface ChordTarget {
 const hasChord = (a: Anchor) => a.items.some((i) => i.t === "chord" || i.t === "bass");
 
 /**
+ * With a lyric entry (`@2`), the beat-1 group in the space before the lyric:
+ * the first group at character 0. A later group at character 0 belongs to
+ * the first syllable. -1 without a lyric entry.
+ */
+function edgeIndex(block: LineBlock): number {
+  if (block.lyricEntry === undefined) return -1;
+  const i = block.above.findIndex((a) => !a.alignRight && a.place !== "after");
+  return i >= 0 && block.above[i]!.at === 0 ? i : -1;
+}
+
+/**
  * The chord group that belongs to a syllable: one placed "on" or "before"
  * any of its characters, or "after" it (pinned anywhere in the gap after its
  * letters, up to the next syllable's start). Groups without a chord, such as
- * a bar line, are left alone.
+ * a bar line, are left alone, and so is the beat-1 group before a late lyric.
  */
 export function anchorIndex(block: LineBlock, syl: SyllableSpan): number {
-  return block.above.findIndex((a) => !a.alignRight && hasChord(a)
+  const edge = edgeIndex(block);
+  return block.above.findIndex((a, i) => i !== edge && !a.alignRight && hasChord(a)
     && (a.place === "after" ? a.at >= syl.end && a.at <= syl.next : a.at >= syl.start && a.at < syl.end));
 }
 
@@ -144,24 +156,42 @@ function barBeat(timing: LineTiming, t: number): { bar: number; beat: string } |
  */
 function syncRhythmMark(block: LineBlock, anchor: Anchor, syl: SyllableSpan, meter: Meter): { error: string } | undefined {
   const mi = (block.rhythm ?? []).findIndex((m) => m.at >= syl.start && m.at < syl.end);
-  if (mi < 0) return undefined;
-  const mark = block.rhythm![mi]!;
+  // The lyric entry (`@2`) is the first syllable's mark; a bare `@` gives no beat to match.
+  const entry = mi < 0 && syl.start === 0 && !!block.lyricEntry;
+  if (mi < 0 && !entry) return undefined;
+  const mark: RhythmMark = entry ? { at: 0, beat: block.lyricEntry! } : block.rhythm![mi]!;
   const timing = lineTiming(block, meter);
   const ai = timing.anchors.indexOf(anchor);
   const chordT = timing.times[ai];
   const bar = [...timing.bars].reverse().find((b) => b.anchor <= ai);
-  if (chordT === undefined && !bar) return undefined; // before the first bar line: untimed
   const timed = anchor.items.find((i): i is Extract<ChordLineItem, { t: "chord" | "bass" }> => i.t === "chord" || i.t === "bass");
   if (!timed) return undefined;
+  if (chordT === undefined && !bar) {
+    // Before the first bar line the chord has no time of its own (owner, 2026-11-20):
+    // it still shows the syllable's beat. A mark in a later bar can't be said by a tag here.
+    if ((mark.bar ?? 1) !== 1) return undefined;
+    if (timed.beats === undefined) {
+      if (beatOffset(mark.beat)) timed.beats = mark.beat; // beat 1 needs no tag
+    } else {
+      const first = timed.beats.split(",")[0]!;
+      if (beatOffset(first) === undefined) return undefined;
+      if (entry) block.lyricEntry = first;
+      else block.rhythm![mi] = { at: mark.at, beat: first };
+    }
+    return undefined;
+  }
   if (timed.beats !== undefined) {
     // The chord's beat tag wins: rewrite the syllable's mark.
     if (chordT === undefined) return undefined; // the timing warning shows on the page
     const at = barBeat(timing, chordT);
     if (!at) return undefined;
-    block.rhythm![mi] = { at: mark.at, beat: at.beat, ...(at.bar !== 1 ? { bar: at.bar } : {}) };
+    if (!entry) block.rhythm![mi] = { at: mark.at, beat: at.beat, ...(at.bar !== 1 ? { bar: at.bar } : {}) };
+    else if (at.bar === 1) block.lyricEntry = at.beat;
+    else return { error: `the lyric comes in on beat ${mark.beat} of the first bar; the chord's beat must be in that bar too` };
     return undefined;
   }
-  const markT = lineTiming({ kind: "line", lyrics: block.lyrics, above: block.above, rhythm: [mark] }, meter).marks[0]?.t;
+  const probe: LineBlock = entry ? { kind: "line", lyrics: block.lyrics, above: block.above, lyricEntry: mark.beat } : { kind: "line", lyrics: block.lyrics, above: block.above, rhythm: [mark] };
+  const markT = lineTiming(probe, meter).marks[0]?.t;
   if (markT === undefined || (chordT !== undefined && Math.abs(chordT - markT) < 1e-6)) return undefined;
   // No tag: the chord takes the syllable's beat.
   const where = `the rhythm line puts this syllable on ${mark.bar && mark.bar !== 1 ? `bar ${mark.bar}, ` : ""}beat ${mark.beat}`;
@@ -173,42 +203,41 @@ function syncRhythmMark(block: LineBlock, anchor: Anchor, syl: SyllableSpan, met
 }
 
 /**
- * The group on beat 1 at the start of a line. With a lyric entry it is pinned
- * to character 0 and stands alone at the left edge; without one it is the
- * first group over the first syllable (its letter usually sits over the
- * syllable's second character), which is also on beat 1.
+ * The chord in the space before a line's lyric (owner, 2026-11-20): only a
+ * line with a lyric entry (`@2`, or a bare `@`) has one, pinned to character
+ * 0 ahead of the first syllable's own chord. Without an entry the lyric is on
+ * the bar, and a chord over the first syllable belongs to that syllable.
  */
-function lineStartIndex(block: LineBlock, meta: ChartMeta): number {
-  const first = syllableAt(lyricText(block.lyrics), 0, meta.language, meta.syllables);
-  const end = block.lyricEntry !== undefined ? 1 : Math.max(1, first?.end ?? 1);
-  const i = block.above.findIndex((a) => !a.alignRight && a.place !== "after");
-  return i >= 0 && block.above[i]!.at < end ? i : -1;
+function lineStartIndex(block: LineBlock): number {
+  return edgeIndex(block);
 }
 
-/** The chord on beat 1 at the start of a line (as typed), and the beat its lyric comes in on. */
+/** The chord in the space before a line's lyric (as typed), and the beat its lyric comes in on. */
 export function lineStartAt(src: string, section: number, blockIndex: number): { group?: string; entry?: string } | undefined {
   const { chart } = parseChartText(src);
   const block = chart.sections[section]?.blocks[blockIndex];
   if (block?.kind !== "line") return undefined;
-  const a = block.above[lineStartIndex(block, chart.meta)];
+  const a = block.above[lineStartIndex(block)];
   return {
     ...(a ? { group: groupText({ items: a.items }).text } : {}),
-    ...(block.lyricEntry !== undefined ? { entry: block.lyricEntry } : {}),
+    ...(block.lyricEntry ? { entry: block.lyricEntry } : {}),
   };
 }
 
 /**
  * Sets the start of a line (owner, 2026-11-13: a chord in the empty space
- * before the lyric): `group` is the chord on beat 1 as typed (undefined or
- * empty removes it), `entry` the beat the lyric comes in on ("2", "1&";
- * undefined or empty: with the bar).
+ * before the lyric): `group` is the chord in the space as typed (undefined or
+ * empty removes it), `entry` the beat the lyric comes in on ("2", "1&").
+ * Neither needs the other (owner, 2026-11-20): a chord with no beat makes the
+ * lyric come in after it (a bare `@`); with neither, the lyric is on the bar.
+ * The first syllable's own chord is never touched.
  */
 export function setLineStart(src: string, section: number, blockIndex: number, change: { group?: string; entry?: string }): EditResult {
   const { chart } = parseChartText(src);
   const block = chart.sections[section]?.blocks[blockIndex];
   if (block?.kind !== "line") return { error: "that line was not found in the text" };
   const next: LineBlock = structuredClone(block);
-  const idx = lineStartIndex(next, chart.meta);
+  const idx = lineStartIndex(next);
   const entry = (change.entry ?? "").trim().replace(/^@/, "");
   if (entry && beatOffset(entry) === undefined) return { error: `“${entry}” is not a beat; type e.g. 2, 3 or 1&` };
   const typed = (change.group ?? "").trim().replace(/^[<>]+/, "");
@@ -216,13 +245,12 @@ export function setLineStart(src: string, section: number, blockIndex: number, c
     const p = parseGroup(typed);
     if ("error" in p) return { error: p.error };
     if (!p.items.length) return { error: "type a chord, e.g. G or |Am7" };
-    // With a lyric entry the beat-1 group is pinned to character 0; without one it
-    // stays where it was over the first syllable.
-    const anchor: Anchor = { at: !entry && idx >= 0 ? next.above[idx]!.at : 0, items: p.items };
+    // Pinned to character 0, ahead of the first syllable's chord.
+    const anchor: Anchor = { at: 0, items: p.items };
     if (idx >= 0) next.above[idx] = anchor;
     else next.above.splice(0, 0, anchor);
   } else if (idx >= 0) next.above.splice(idx, 1);
-  if (entry) next.lyricEntry = entry;
+  if (typed || entry) next.lyricEntry = entry;
   else delete next.lyricEntry;
   return replaceBlock(src, section, blockIndex, next);
 }

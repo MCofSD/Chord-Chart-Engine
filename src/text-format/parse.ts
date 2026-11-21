@@ -106,10 +106,11 @@ export function readLyric(line: string): LyricRead {
   let i = isForcedLyric(line) ? 2 : 0;
   while (line[i] === " ") i++;
   let lyricEntry: string | undefined;
-  const entry = /^@(\S+)(?: +|$)/.exec(line.slice(i));
+  // "@2 ": the lyric comes in on beat 2; a bare "@ ": it comes in after the chord in the space, beat not given.
+  const entry = /^@(\S*)(?: +|$)/.exec(line.slice(i));
   if (entry) {
     lyricEntry = entry[1]!;
-    if (beatOffset(lyricEntry) === undefined) problems.push(`"@${lyricEntry}": the lyric entry needs one beat, e.g. @2 or @1&`);
+    if (lyricEntry && beatOffset(lyricEntry) === undefined) problems.push(`"@${lyricEntry}": the lyric entry needs one beat, e.g. @2 or @1&`);
     i += entry[0].length;
   }
   const contentStart = i;
